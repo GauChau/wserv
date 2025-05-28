@@ -1,0 +1,111 @@
+server {
+    host 127.0.0.1;
+    port 8080;
+    server_name myserver.com;
+    error_page 404 /errors/404.html;
+    client_max_body_size 1000000;
+
+    location / {
+        root /var/www/html;
+        index index.html;
+        methods GET POST;
+        autoindex off;
+    }
+
+    location /redirect {
+        return 301 http://example.com;
+    }
+
+    location /uploads {
+        root /var/www/uploads;
+        methods POST;
+        autoindex on;
+    }
+}
+
+#server 2 CGI...
+server {
+    host 127.0.0.1;
+    port 8088;
+    # This will be used if host header doesn't match the one above
+    error_page 500 /errors/500.html;
+    client_max_body_size 10M;
+    server_name cgitest.com;
+
+    location /api {
+        root /var/www/api;
+        methods GET;
+        autoindex off;
+    }
+
+    route /redirect-me {
+        redirect http://example.com;
+    }
+
+    route /cgi-bin {
+        methods GET POST;
+        root /var/www/cgi-bin;
+        cgi_extension .py;
+        cgi_path /usr/bin/python3;
+    }
+    route /test {
+        redirect http://example.com;
+    }
+}
+
+
+server {
+    host 127.0.0.1;
+    port 8082;
+    # This will be used if host header doesn't match the one above
+    error_page 500 /errors/500.html;
+    client_max_body_size 500000;
+    server_name js.com;
+
+    location /api {
+        root /var/www/api;
+        methods GET;
+        autoindex off;
+    }
+}
+
+# Server 4 - Same port, different server name
+server {
+    host 127.0.0.1;
+    port 8080;
+    server_name api.local;
+
+    client_max_body_size 5M;
+
+    error_page 404 /custom-errors/api-404.html;
+
+    route /api {
+        methods GET POST;
+        root /var/www/api;
+        index index.json;
+    }
+
+    route /api/upload {
+        methods POST;
+        upload_store /var/www/api/uploads;
+    }
+}
+
+# Server 5 - On a different port
+server {
+    host 0.0.0.0;
+    port 9091;
+    server_name files.local;
+
+    error_page 403 /errors/403.html;
+
+    client_max_body_size 50M;
+
+    route /public {
+        methods GET;
+        root /var/public;
+        autoindex on;
+        index index.html;
+    }
+}
+
