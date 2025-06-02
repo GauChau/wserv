@@ -1,6 +1,6 @@
+#include "request.cpp"
 #include "webserv.hpp"
 #include "utils.cpp"
-
 /*
     BRIEF :
     ✅ Common Socket Syscalls (for a TCP server)
@@ -40,14 +40,14 @@ static void printlocation(struct LocationConfig loc, std::string msg)
 {
 
     std::cout<<msg << " :PRINTLOC\n"
-        "path:"<<loc.path
+        "| path:"<<loc.path
         <<"\n| root:"<<loc.root
         <<"\n| cgi_extension:"<<loc.cgi_extension
         <<"\n| cgipath:"<<loc.cgi_path
         <<"\n| index:"<<loc.index
         // <<"allowdmethods:"<<loc.allowed_methods
         // index_files;
-        <<"\n| redicrecturl:"<<loc.redirect_url
+        <<"\n| redirecturl:"<<loc.redirect_url
     // bool autoindex;
         <<std::endl;
 }
@@ -195,36 +195,12 @@ static std::string resolve_path(const ServerConfig& server, const std::string& u
     std::cout<<"D\n";
     return ""; // file doesn't exist
 }
-int check_allowed_methods(std::string key, const ServerConfig& server)
-{
-    std::vector<LocationConfig>::const_iterator it_loc = server.locations.begin();
-    for(;it_loc != server.locations.end();it_loc++)
-    {
-        std::vector<std::string>::const_iterator it_meth = it_loc->allowed_methods.begin();
-        for(;it_meth != it_loc->allowed_methods.end();it_meth++)
-        {
-            std::cout<<"methloop: |"<<*it_meth<<"|"<<std::endl;
-            // if(key == *it_meth)
-            //     return 1;
-        }
-    }
-    return 0;
-}
-std::string request_handler(char *request_buffer, const ServerConfig& server)
-{
-    std::string request(request_buffer), response, line_buffer, key_buffer;
-    std::istringstream request_stream(request);
-    while (std::getline(request_stream, line_buffer))
-    {
-        std::cout<<"GETLINE:"<< line_buffer<<std::endl;
-        std::istringstream key_stream(line_buffer);
-        std::getline(request_stream, line_buffer,' ');
 
-    }
-    // std::cout<<"endofGETLINE\n";
-    return request;
+// std::string request_handler(char *request_buffer, const ServerConfig& server)
+// {
+//     Request rqst(request_buffer, server);
 
-}
+// }
 
 // handle a client request (send a basic HTTP response)
 void Webserv::handle_client(int client_socket, const ServerConfig &serv)
@@ -237,8 +213,10 @@ void Webserv::handle_client(int client_socket, const ServerConfig &serv)
         close(client_socket);
         return;
     }
-    std::cout<<"methcheck: "<<check_allowed_methods("GET", serv);
+    // check_allowed_methods("JOHN", serv);
     // request_handler(buffer, serv);
+    Request test(buffer,serv);
+    test.execute();
     buffer[bytes_received] = '\0'; // null-terminate received data
     // log  received HTTP request
     std::cout << "\033[35m--- Received request <----\n" << buffer<<"///END OF REQUEST\n" << "\033[0m"<< std::endl;
@@ -252,6 +230,35 @@ void Webserv::handle_client(int client_socket, const ServerConfig &serv)
     if (path.empty())
     {
         // Construct a basic HTTP 404 response
+        const char* response =
+			"HTTP/1.1 200 OK\r\n"
+			"Content-Type: text/html; charset=UTF-8\r\n"
+			"Content-Length: 318\r\n"
+			"Connection: close\r\n"
+			"\r\n"
+			"<!DOCTYPE html>\n"
+			"<html lang=\"en\">\n"
+			"<head>\n"
+			"  <meta charset=\"UTF-8\">\n"
+			"  <title>Upload Form</title>\n"
+			"</head>\n"
+			"<body>\n"
+			"  <h1>Upload a file and send data</h1>\n"
+			"  <form action=\"/uploads\" method=\"POST\" enctype=\"multipart/form-data\">\n"
+			"    <label for=\"username\">Username:</label>\n"
+			"    <input type=\"text\" id=\"username\" name=\"username\" value=\"alice\" required />\n"
+			"    <br /><br />\n"
+			"    <label for=\"file\">Choose a file:</label>\n"
+			"    <input type=\"file\" id=\"file\" name=\"file\" required />\n"
+			"    <br /><br />\n"
+			"    <input type=\"submit\" value=\"Upload\" />\n"
+			"  </form>\n"
+			"</body>\n"
+			"</html>\n";
+
+
+
+    //     "</html>";
         // const char* response =
         //     "HTTP/1.1 404 Not Found\r\n"
         //     "Content-Type: text/html\r\n"
@@ -259,25 +266,12 @@ void Webserv::handle_client(int client_socket, const ServerConfig &serv)
         //     "Connection: close\r\n"
         //     "\r\n"
         //     "<html>\r\n"
-        //     "<head><title>404 Not Found</title></head>\r\n"
+        //     "<head><title>wbserv</title></head>\r\n"
         //     "<body>\r\n"
-        //     "<h1>404 Not Found</h1>\r\n"
-        //     "<p>The requested URL was not found on this server.</p>\r\n"
+        //     "<h1>c comment frro</h1>\r\n"
+        //     "<p>The requested URL was found on this server +</p>\r\n"
         //     "</body>\r\n"
         //     "</html>";
-        const char* response =
-            "HTTP/1.1 404 Not Found\r\n"
-            "Content-Type: text/html\r\n"
-            "Content-Length: 134\r\n"
-            "Connection: close\r\n"
-            "\r\n"
-            "<html>\r\n"
-            "<head><title>wbserv</title></head>\r\n"
-            "<body>\r\n"
-            "<h1>c comment frro</h1>\r\n"
-            "<p>The requested URL was found on this server +</p>\r\n"
-            "</body>\r\n"
-            "</html>";
         send(client_socket, response, strlen(response), 0);
     } else if (path == "[AUTOINDEX]") {
         // Generate and send a directory listing

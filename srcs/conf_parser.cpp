@@ -136,6 +136,7 @@ bool Webserv::parseConfigFile(const std::string& filename)
                     else if (key == "index") serv_loc.index = (value);
                     else if (key == "cgi_extension") serv_loc.cgi_extension = (value);
                     else if (key == "cgi_path") serv_loc.cgi_path = (value);
+                    else if (key == "return"){iss>>value; serv_loc.redirect_url = (value);}
                 }
             }
         }

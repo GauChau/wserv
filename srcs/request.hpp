@@ -1,0 +1,108 @@
+#ifndef REQUEST_HPP
+
+# define REQUEST_HPP
+
+#include <iostream>
+#include <fstream>
+#include <cstring>
+#include <cstdlib>
+#include <unistd.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <poll.h>
+#include <stdexcept>  // for std::invalid_argument
+#include <vector>
+#include <map>
+#include <stack>
+#include <sstream>
+#include <arpa/inet.h>
+#include <filesystem>
+#include <sys/stat.h>
+#include <algorithm>
+#include "utils.cpp"
+#include "webserv.hpp"
+
+/*
+    routes examples:
+        route / {
+            methods GET POST;
+            root /var/www/html;
+            index index.html;
+            autoindex off;
+        }
+
+        route /uploads {
+            methods POST;
+            root /var/www/uploads;
+            upload_store /var/www/uploads;
+        }
+
+    struct sockaddr_in {
+        sa_family_t    sin_family;   // Address family: ex AF_INET -> IPv4
+        in_port_t      sin_port;     // Port number: ex 443(HTTPs)
+        struct in_addr sin_addr;     // Internet address (struct in_addr)
+        char           sin_zero[8];  // Padding to make the structure size 16 bytes
+    };
+*/
+
+// struct LocationConfig
+// {
+//     std::string
+//         path,
+//         root,
+//         cgi_extension,
+//         cgi_path,
+//         index;
+//     std::vector<std::string>
+//         allowed_methods,
+//         index_files;
+//     std::string redirect_url;
+//     bool autoindex;
+// };
+
+// struct ServerConfig
+// {
+//     std::string
+//         host,
+//         server_name;
+//     int
+//         port,
+//         server_socket,
+//         client_socket;
+//     struct sockaddr_in
+//         server_addr,
+//         client_addr;
+//     socklen_t
+//         client_addr_len;
+//     size_t
+//         client_max_body_size;
+//     std::vector<LocationConfig>
+//         locations;
+//     std::vector<std::pair<unsigned int, std::string> >
+//         error_pages;
+// };
+class Request
+{
+    public:
+		Request(char* buffer);
+		Request(char* buffer, ServerConfig serv);
+        ~Request();
+		void check_allowed_methods(ServerConfig serv);
+		void execute();
+
+        private:
+            std::string r_method, r_location, r_version, r_full_request;
+            LocationConfig _loc;
+            bool authorized;
+            void Post();
+            void Get();
+            void Put();
+            void Patch();
+            void Delete();
+            void Head();
+            void Options();
+
+
+};
+
+#endif

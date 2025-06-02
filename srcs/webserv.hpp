@@ -20,6 +20,7 @@
 #include <sys/stat.h>
 #include <algorithm>
 #include "utils.cpp"
+// #include "request.hpp"
 
 #define PORT 8080
 #define BACKLOG 10
@@ -47,6 +48,12 @@
         char           sin_zero[8];  // Padding to make the structure size 16 bytes
     };
 */
+
+
+struct RequestData
+{
+
+};
 
 struct LocationConfig
 {
@@ -84,6 +91,28 @@ struct ServerConfig
     std::vector<std::pair<unsigned int, std::string> >
         error_pages;
 };
+// class Request
+// {
+//     public:
+// 		Request(char* buffer);
+// 		Request(char* buffer, ServerConfig serv);
+//         ~Request();
+// 		void check_allowed_methods(ServerConfig serv);
+// 		void execute();
+
+//     private:
+//         std::string method, location, version, full_request;
+// 		bool authorized;
+// 		void Post();
+// 		void Get();
+// 		void Put();
+// 		void Patch();
+// 		void Delete();
+// 		void Head();
+// 		void Options();
+
+
+// };
 
 class Webserv
 {
@@ -106,6 +135,10 @@ void fill_ctn_data(T& ctn, std::string line)//take each word and put in the cont
 	while (iss >> word)
 	{
         // std::cerr<<"word: "<<word<<std::endl;
+        if(word == "methods")continue ;
+        if(*word.rbegin()== ';')
+            word.erase(word.end() -1);
+
 		ctn.push_back(word);
 	}
 }
