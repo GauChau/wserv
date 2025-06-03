@@ -48,9 +48,6 @@ server {
         cgi_extension .py;
         cgi_path /usr/bin/python3;
     }
-    route /test {
-        redirect http://example.com;
-    }
 }
 
 

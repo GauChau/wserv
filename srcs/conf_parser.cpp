@@ -129,14 +129,27 @@ bool Webserv::parseConfigFile(const std::string& filename)
                 // eaach route part
                 else if (context.top() == "location")
                 {
-                    if (key == "root") serv_loc.root = value;
-                    else if (key == "autoindex") serv_loc.autoindex = (value == "on");
-                    // else if (key == "methods")serv_loc.allowed_methods.push_back(line.substr(0, line.size() - 1));
-                    else if (key == "methods") fill_ctn_data(serv_loc.allowed_methods,line);
-                    else if (key == "index") serv_loc.index = (value);
-                    else if (key == "cgi_extension") serv_loc.cgi_extension = (value);
-                    else if (key == "cgi_path") serv_loc.cgi_path = (value);
-                    else if (key == "return"){iss>>value; serv_loc.redirect_url = (value);}
+                    if (key == "root")
+                        serv_loc.root = value;
+                    else if (key == "autoindex")
+                        serv_loc.autoindex = (value == "on");
+                    else if (key == "methods"){
+                        // serv_loc.allowed_methods.push_back(line.substr(0, line.size() - 1));
+                        line = line.substr(0, line.size() - 1);  // removing last char (e.g., '\n')
+                        std::istringstream iss(line);
+                        std::string method;
+
+                        while (iss >> method) {
+                            serv_loc.allowed_methods.push_back(method);
+                        }
+
+                    }
+                    else if (key == "index")
+                        serv_loc.index = (value);
+                    else if (key == "cgi_extension")
+                        serv_loc.cgi_extension = (value);
+                    else if (key == "cgi_path")
+                        serv_loc.cgi_path = (value);
                 }
             }
         }

@@ -19,89 +19,46 @@
 #include <filesystem>
 #include <sys/stat.h>
 #include <algorithm>
-#include "utils.cpp"
 #include "webserv.hpp"
 
-/*
-    routes examples:
-        route / {
-            methods GET POST;
-            root /var/www/html;
-            index index.html;
-            autoindex off;
-        }
-
-        route /uploads {
-            methods POST;
-            root /var/www/uploads;
-            upload_store /var/www/uploads;
-        }
-
-    struct sockaddr_in {
-        sa_family_t    sin_family;   // Address family: ex AF_INET -> IPv4
-        in_port_t      sin_port;     // Port number: ex 443(HTTPs)
-        struct in_addr sin_addr;     // Internet address (struct in_addr)
-        char           sin_zero[8];  // Padding to make the structure size 16 bytes
-    };
-*/
-
-// struct LocationConfig
-// {
-//     std::string
-//         path,
-//         root,
-//         cgi_extension,
-//         cgi_path,
-//         index;
-//     std::vector<std::string>
-//         allowed_methods,
-//         index_files;
-//     std::string redirect_url;
-//     bool autoindex;
-// };
-
-// struct ServerConfig
-// {
-//     std::string
-//         host,
-//         server_name;
-//     int
-//         port,
-//         server_socket,
-//         client_socket;
-//     struct sockaddr_in
-//         server_addr,
-//         client_addr;
-//     socklen_t
-//         client_addr_len;
-//     size_t
-//         client_max_body_size;
-//     std::vector<LocationConfig>
-//         locations;
-//     std::vector<std::pair<unsigned int, std::string> >
-//         error_pages;
-// };
 class Request
 {
     public:
-		Request(char* buffer);
-		Request(char* buffer, ServerConfig serv);
-        ~Request();
-		void check_allowed_methods(ServerConfig serv);
-		void execute();
+      Request(char* buffer);
+      Request(char* buffer, const ServerConfig &serv, int socket);
+      ~Request();
+      void check_allowed_methods(const ServerConfig &serv);
+      void execute();
+      std::string _get_ReqContent();
 
-        private:
-            std::string r_method, r_location, r_version, r_full_request;
-            LocationConfig _loc;
-            bool authorized;
-            void Post();
-            void Get();
-            void Put();
-            void Patch();
-            void Delete();
-            void Head();
-            void Options();
+    private:
+        int _socket;
+        std::map<std::string,std::string> http_params;
 
+        std::string r_method, r_location, r_version, r_full_request;
+        LocationConfig _loc;
+        bool authorized;
+        void Post();
+        void Get();
+        void Put();
+        void Patch();
+        void Delete();
+        void Head();
+        void Options();
+        std::string _ReqContent=
+        			"HTTP/1.1 404 Not Found\r\n"
+			"Content-Type: text/html\r\n"
+			"Content-Length: 134\r\n"
+			"Connection: close\r\n"
+			"\r\n"
+			"<html>\r\n"
+			"<head><title>WEBSERV - 404</title></head>\r\n"
+			"<body>\r\n"
+			"<h1>ERROR 404</h1>\r\n"
+			"<h2>cheh</h2>\r\n"
+			"<p>The requested URL was found on this server </p>\r\n"
+			"</body>\r\n"
+			"</html>";
 
 };
 
