@@ -142,6 +142,7 @@ void Webserv::handle_client(int client_socket, const ServerConfig &serv)
     {
         // std::cerr << " \033[31m Error receiving data from client!  : " << client_socket << "\033[0m" << std::endl;
         close(client_socket);
+        std::cout<<"CLIENT CLOSED AAA\n";
         return;
     }
 
@@ -151,6 +152,7 @@ void Webserv::handle_client(int client_socket, const ServerConfig &serv)
     buffer[bytes_received] = '\0'; // null-terminate data
     std::string response_ = R._get_ReqContent();
     send(client_socket, response_.c_str(), (response_.size()), 0);
+    std::cout<<"CLIENT CLOSED BBB\n";
     close(client_socket); // Close client socket after sending the response
 }
 
@@ -226,7 +228,9 @@ void Webserv::start(void)
                 // client socket: Handle client
                 std::cerr << "///handle client// " <<std::endl;
                 ServerConfig* serv = client_fd_to_server[pfd.fd];
+                std::cerr << "///handle client socket: "<<serv->client_socket <<std::endl;
                 this->handle_client(serv->client_socket, *serv);
+
 
                 if (true) {
                     int client_fd = pfd.fd;  // Add this at the start of the else branch

@@ -35,7 +35,7 @@ class Request
         int _socket;
         std::map<std::string,std::string> http_params;
 
-        std::string r_method, r_location, r_version, r_full_request;
+        std::string r_method, r_location, r_version, r_full_request, r_boundary;
         LocationConfig _loc;
         bool authorized;
         void Post();

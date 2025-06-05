@@ -21,6 +21,15 @@ server {
         methods POST;
         autoindex on;
     }
+
+    location /upload {
+        root /var/www/uploads;
+        methods POST;
+        autoindex off;
+        upload_path /var/www/uploads;
+        client_max_body_size 10M;
+    }
+
 }
 
 #server 2 CGI...

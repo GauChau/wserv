@@ -24,28 +24,6 @@
 #define BACKLOG 10
 #define MAX_EVENTS 10
 
-/*
-    routes examples:
-        route / {
-            methods GET POST;
-            root /var/www/html;
-            index index.html;
-            autoindex off;
-        }
-
-        route /uploads {
-            methods POST;
-            root /var/www/uploads;
-            upload_store /var/www/uploads;
-        }
-
-    struct sockaddr_in {
-        sa_family_t    sin_family;   // Address family: ex AF_INET -> IPv4
-        in_port_t      sin_port;     // Port number: ex 443(HTTPs)
-        struct in_addr sin_addr;     // Internet address (struct in_addr)
-        char           sin_zero[8];  // Padding to make the structure size 16 bytes
-    };
-*/
 
 struct LocationConfig
 {

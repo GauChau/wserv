@@ -36,37 +36,11 @@ Request::Request(char *raw, const ServerConfig &servr, int socket):_socket(socke
 
 
 
-void Request::check_allowed_methods(const ServerConfig &server)
-{
-	std::vector<LocationConfig>::const_iterator it_loc = server.locations.begin();
-    for(;it_loc != server.locations.end();it_loc++)
-    {
-		std::cout << it_loc->path << " vs " <<  this->r_location << std::endl;
-		if(it_loc->path == this->r_location)
-		{
-			std::cout << "found" << std::endl;
-			this->_loc = *it_loc;
-			std::vector<std::string>::const_iterator it_meth = it_loc->allowed_methods.begin();
-			for(;it_meth != it_loc->allowed_methods.end();it_meth++)
-			{
-				// std::cout << "allowd" << std::endl;
-				std::cout<< "allowd" << *it_meth << std::endl;
-			    if(this->r_method == *it_meth)
-			    {
-			        this->authorized = true;// <--- then execute it
-					return ;
-			    }
-			}
-			return ;
-		}
-    }
 
-
-}
 // ________________EXECUTE METHOD____________________
 void Request::execute()
 {
-	std::cout<<"\033[48;5;236mREQUEST = '" << this->r_location<<"' ";
+	std::cout<<"\033[48;5;236mREQUEST = '" << this->r_location<<"' \n";
 	if(!this->authorized)
 		std::cout<<"method "<<this->r_method<< ": NOT AUTHORIZED>"<<std::endl;
 	else if (this->r_method == "GET")
@@ -81,9 +55,45 @@ void Request::execute()
 // ________________POST METHOD____________________
 void Request::Post()
 {
+	std::cout<<"|thisSOCKET:"<<this->_socket <<std::endl;
 	std::cout<<"POST | EXECUTED !!> \033[0m"<<std::endl;
-	// this->authorized =false;
+
+	//EXTRACT BOUNDARY
+	std::string::size_type pos = this->http_params.find("Content-Type")->second.find("boundary=");
+    if (pos != std::string::npos) {
+        // Get the rest of the string starting from the match
+		
+        this->r_boundary = this->http_params.find("Content-Type")->second.substr(pos+9);
+    }
+
 	//calculate data length
+	ssize_t  content_length;
+	if(this->http_params.find("Content-Length") != this->http_params.end())
+	{
+		content_length = atol(this->http_params.find("Content-Length")->second.c_str());
+		std::cout<<"ctn len:" <<this->http_params.find("Content-Length")->second<<std::endl;
+	}
+
+	//EXTRACT DATA INTO THIS->R_FULL_REQUEST
+	char buffer[1024];
+	long bytes_received = 0;  // Make sure this is initialized
+	while (bytes_received < content_length)
+	{
+		ssize_t ret = recv(this->_socket, buffer, sizeof(buffer), 0);
+		if (ret == 0)
+			break;
+		if (ret < 0)
+		{
+			std::cerr << "\033[31m Error receiving data from client! Socket: " << this->_socket << "\033[0m" << std::endl;
+			close(this->_socket);
+			return;
+		}
+		this->r_full_request.append(buffer, ret);
+		bytes_received += ret;
+	}
+	std::cout<<"\nrboundary:\n" <<this->r_boundary<<std::endl;
+	std::cout<<"\nfull SHIT START:\n" <<this->r_full_request<<"\nfull SHIT END:\n";
+	//<<this->http_params.find("Content-Type")->second <<std::endl;
 }
 // ______________________________________________
 
@@ -204,5 +214,34 @@ void Request::Get()
 std::string Request::_get_ReqContent()
 {
 	return this->_ReqContent;
+}
+
+
+void Request::check_allowed_methods(const ServerConfig &server)
+{
+	std::vector<LocationConfig>::const_iterator it_loc = server.locations.begin();
+    for(;it_loc != server.locations.end();it_loc++)
+    {
+		std::cout << it_loc->path << " vs " <<  this->r_location << std::endl;
+		if(it_loc->path == this->r_location)
+		{
+			std::cout << "found" << std::endl;
+			this->_loc = *it_loc;
+			std::vector<std::string>::const_iterator it_meth = it_loc->allowed_methods.begin();
+			for(;it_meth != it_loc->allowed_methods.end();it_meth++)
+			{
+				// std::cout << "allowd" << std::endl;
+				std::cout<< "allowd" << *it_meth << std::endl;
+			    if(this->r_method == *it_meth)
+			    {
+			        this->authorized = true;// <--- then execute it
+					return ;
+			    }
+			}
+			return ;
+		}
+    }
+
+
 }
 // ______________________________________________
