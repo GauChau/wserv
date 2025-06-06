@@ -21,6 +21,11 @@
 #include <algorithm>
 #include "webserv.hpp"
 
+struct file_id
+{
+    std::string name, fname, type;
+};
+
 class Request
 {
     public:
@@ -35,30 +40,28 @@ class Request
         int _socket;
         std::map<std::string,std::string> http_params;
 
-        std::string r_method, r_location, r_version, r_full_request, r_boundary;
+        std::string r_method, r_location, r_version, r_boundary, r_body, r_header;
         LocationConfig _loc;
+        file_id file;
         bool authorized;
         void Post();
         void Get();
-        void Put();
-        void Patch();
         void Delete();
-        void Head();
-        void Options();
+        void writeData();
         std::string _ReqContent=
         			"HTTP/1.1 404 Not Found\r\n"
-			"Content-Type: text/html\r\n"
-			"Content-Length: 134\r\n"
-			"Connection: close\r\n"
-			"\r\n"
-			"<html>\r\n"
-			"<head><title>WEBSERV - 404</title></head>\r\n"
-			"<body>\r\n"
-			"<h1>ERROR 404</h1>\r\n"
-			"<h2>cheh</h2>\r\n"
-			"<p>The requested URL was found on this server </p>\r\n"
-			"</body>\r\n"
-			"</html>";
+              "Content-Type: text/html\r\n"
+              "Content-Length: 134\r\n"
+              "Connection: close\r\n"
+              "\r\n"
+              "<html>\r\n"
+              "<head><title>WEBSERV - 404</title></head>\r\n"
+              "<body>\r\n"
+              "<h1>ERROR 404</h1>\r\n"
+              "<h2>cheh</h2>\r\n"
+              "<p>The requested URL was found on this server </p>\r\n"
+              "</body>\r\n"
+              "</html>";
 
 };
 

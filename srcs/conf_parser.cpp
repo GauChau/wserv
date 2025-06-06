@@ -150,6 +150,8 @@ bool Webserv::parseConfigFile(const std::string& filename)
                         serv_loc.cgi_extension = (value);
                     else if (key == "cgi_path")
                         serv_loc.cgi_path = (value);
+                    else if (key == "upload_store")
+                        serv_loc.upload_store = (value);
                 }
             }
         }

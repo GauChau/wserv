@@ -1,18 +1,23 @@
 #include "request.hpp"
+#include <fstream>
+#include <string>
+#include <iostream>
+#include <utility>
 
 Request::~Request()
 { }
 
 Request::Request(char *raw)
 {
-	this->r_full_request = raw;
+	this->r_header = raw;
 	std::istringstream iss(raw);
 
 	iss>> this->r_method>> this->r_location >> this->r_version;
 }
 Request::Request(char *raw, const ServerConfig &servr, int socket):_socket(socket)
 {
-	this->r_full_request = raw;
+	// this->r_full_request = raw;
+	this->r_header = raw;
 	std::istringstream iss(raw);
 	std::string buffer;
 
@@ -34,8 +39,19 @@ Request::Request(char *raw, const ServerConfig &servr, int socket):_socket(socke
 	this->execute();
 }
 
+bool writeToFile( std::string& filename, const std::string& content)
+{
+    std::ofstream outFile(filename.c_str(),std::ios::app);  // Creates the file if it doesn't exist
 
-
+    if (!outFile)
+	{
+        std::cerr << "Error: Could not open or create file: " << filename << std::endl;
+        return false;
+    }
+	// std::cout <<"\033[92mcontent: |"<<content<<"|\033[0m\n";
+    outFile << content<<"\n";
+    return true;
+}
 
 // ________________EXECUTE METHOD____________________
 void Request::execute()
@@ -50,7 +66,84 @@ void Request::execute()
 
 }
 
+void Request::writeData()
+{
+	bool parsestate = false;
+	if (this->r_boundary =="void")
+	{
+		return ;
+	}
+	else
+	{
+		std::istringstream s(this->r_body);
+		std::string buf;
+		while(getline(s,buf))
+		{
+			if (buf==this->r_boundary + "--\r")
+			{
+				std::cout<<"END OF DATAREAD\n";
+				break;
+			}
+			else if (buf==this->r_boundary+'\r')
+			{
+				parsestate = !parsestate;
+			}
+			else if (parsestate)
+			{
+				std::string::size_type pos, epos;
 
+				//GET NAMETYPE
+				pos = buf.find("name=\"");
+				if (pos != std::string::npos)
+				{
+					pos+=6;
+					epos = buf.find("\"",pos);
+					if (epos != std::string::npos)
+					{
+						this->file.name = "var/www/uploads/";
+						this->file.name += buf.substr(pos,epos-pos);
+					}
+				}
+				//GETFILENAME
+				pos = buf.find("filename=\"");
+				if (pos != std::string::npos)
+				{
+					pos+=10;
+					epos = buf.find("\"",pos);
+					if (epos != std::string::npos)
+					{
+						this->file.fname = "var/www/uploads/";
+						this->file.fname += buf.substr(pos,epos-pos);
+					}
+				}
+
+				//GET CONTENTYPE LINE
+				getline(s,buf);
+				pos = buf.find("Content-Type: ");
+				if (pos != std::string::npos)
+				{
+					this->file.type = buf.substr(pos+14);
+				}
+				parsestate = !parsestate;
+				//SKIP EMPTY LINE
+				getline(s,buf);
+				std::cout<<"fname: "<<this->file.fname<<"\n";
+				std::ofstream outFile(this->file.fname.c_str(),std::ios::trunc);
+				if (!outFile)
+				{
+					std::cerr << "Error: Could not open file: " << outFile << std::endl;
+					return ;
+				}
+			}
+			else
+			{
+				writeToFile(this->file.fname,buf);
+			}
+
+		}
+
+	}
+}
 
 // ________________POST METHOD____________________
 void Request::Post()
@@ -60,14 +153,18 @@ void Request::Post()
 
 	//EXTRACT BOUNDARY
 	std::string::size_type pos = this->http_params.find("Content-Type")->second.find("boundary=");
-    if (pos != std::string::npos) {
+    if (pos != std::string::npos)
+	{
         // Get the rest of the string starting from the match
-		
         this->r_boundary = this->http_params.find("Content-Type")->second.substr(pos+9);
+		this->r_boundary.resize(this->r_boundary.size()-1);
+		this->r_boundary = "--" + this->r_boundary;
     }
+	else
+		this->r_boundary = "void";
 
 	//calculate data length
-	ssize_t  content_length;
+	ssize_t  content_length=0;
 	if(this->http_params.find("Content-Length") != this->http_params.end())
 	{
 		content_length = atol(this->http_params.find("Content-Length")->second.c_str());
@@ -88,12 +185,16 @@ void Request::Post()
 			close(this->_socket);
 			return;
 		}
-		this->r_full_request.append(buffer, ret);
+		// this->r_full_request.append(buffer, ret);
+		// std::cout<<buffer<<std::endl;
+		this->r_body.append(buffer, ret);
 		bytes_received += ret;
 	}
-	std::cout<<"\nrboundary:\n" <<this->r_boundary<<std::endl;
-	std::cout<<"\nfull SHIT START:\n" <<this->r_full_request<<"\nfull SHIT END:\n";
-	//<<this->http_params.find("Content-Type")->second <<std::endl;
+	this->writeData();
+	// std::cout<<"\nHEADER HEADER SHIT START:\n" <<this->r_header<<"\nHAEADER SHIT END:\n";
+	// std::cout<<"\nBODY SHIT START:\n" <<this->r_body<<"\nfull SHIT END:\n";
+	// std::cout<<this->http_params.find("Content-Type")->second <<std::endl;
+
 }
 // ______________________________________________
 

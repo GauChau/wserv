@@ -32,7 +32,8 @@ struct LocationConfig
         root,
         cgi_extension,
         cgi_path,
-        index;
+        index,
+        upload_store;
     std::vector<std::string>
         allowed_methods,
         index_files;

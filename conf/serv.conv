@@ -9,6 +9,7 @@ server {
         root /var/www/html;
         index index.html;
         methods GET POST;
+        upload_store /var/www/uploads;
         autoindex off;
     }
 
@@ -22,11 +23,12 @@ server {
         autoindex on;
     }
 
-    location /upload {
+    location /zinin {
         root /var/www/uploads;
+        index upl.html
         methods POST;
         autoindex off;
-        upload_path /var/www/uploads;
+        upload_store /var/www/uploads;
         client_max_body_size 10M;
     }
 

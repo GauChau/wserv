@@ -1,3 +1,0 @@
-curl -X POST http://127.0.0.1:8080/upload \
-  -F "image=@img.jpg;type=image/jpeg" \
-  -F "textfile=@file.txt;type=text/plain" 
