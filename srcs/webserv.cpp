@@ -2,7 +2,7 @@
 #include "request.hpp"
 
 /*
-    BRIEF :
+    BRIEF : 
     ✅ Common Socket Syscalls (for a TCP server)
 
     1️⃣ Create socket	socket()	Creates a new socket file descriptor (FD).
@@ -12,7 +12,7 @@
     2️⃣ Bind address	bind()	Assigns an address (IP + port) to socket.
     2. -bind(fd, (struct sockaddr*)&addr, sizeof(addr));
        -binds socket to an IP and port so  kernel knows where to listen.
-
+    
     3️⃣ Listen for clients	listen()	Marks socket as passive (ready to accept connections).
     3.  -listen(fd, backlog);
         -enables socket to accept incoming connections (backlog = queue size).
@@ -33,7 +33,7 @@
         write(client_fd, response, length);
 
     7️⃣ close socket	close()	closes socket file descriptor.
-    7. - close(fd);
+    7. - close(fd); 
        - closes the socket (server or client).
 */
 
@@ -91,7 +91,7 @@ void Webserv::init(void)
                 continue;;
             }
         }
-
+     
         memset(&serv_.server_addr, 0, sizeof(serv_.server_addr));
         serv_.server_addr.sin_family = AF_INET;
         serv_.server_addr.sin_port = htons(serv_.port);
@@ -106,7 +106,7 @@ void Webserv::init(void)
             exit(EXIT_FAILURE);
         }
 
-
+  
         // bind socket to address and port
         // (turns [address, port] -> [fd] )
         if (bind(serv_.server_socket, (struct sockaddr*)&serv_.server_addr, sizeof(serv_.server_addr)) < 0)
@@ -142,17 +142,15 @@ void Webserv::handle_client(int client_socket, const ServerConfig &serv)
     {
         // std::cerr << " \033[31m Error receiving data from client!  : " << client_socket << "\033[0m" << std::endl;
         close(client_socket);
-        std::cout<<"CLIENT CLOSED AAA\n";
         return;
     }
+    buffer[bytes_received] = '\0'; // null-terminate data
 
     // log  received HTTP request
-    std::cout << "\033[36m>>>>>>>>> Received a request! <----\n" << buffer << "\nEND REQUEST\033[0m"<< std::endl;
+    std::cout << "\033[36m>>>>>>>>> Received a request! <----\n" << buffer << "\033[0m"<< std::endl;
     Request R = Request(buffer, serv, client_socket);
-    buffer[bytes_received] = '\0'; // null-terminate data
     std::string response_ = R._get_ReqContent();
     send(client_socket, response_.c_str(), (response_.size()), 0);
-    std::cout<<"CLIENT CLOSED BBB\n";
     close(client_socket); // Close client socket after sending the response
 }
 
@@ -187,13 +185,13 @@ void Webserv::start(void)
 
         for (size_t i = 0; i < poll_fds.size(); ++i)
         {
-            struct pollfd& pfd = poll_fds[i];
-
+            struct pollfd& pfd = poll_fds[i];            
+            
             // nothing....
             if (!(pfd.revents & POLLIN))
                 continue;
 
-            // accept new [connection]
+            // accept new [connection]       
             if (fd_to_server.count(pfd.fd))
             {
                 ServerConfig* serv = NULL;
@@ -202,14 +200,14 @@ void Webserv::start(void)
                     serv = it->second;
                 else
                     std::cerr << "Error: no valid ServerConfig found for [fd]: " << pfd.fd << std::endl;
-
+            
 
                 int client_fd = accept(pfd.fd,
                     (struct sockaddr*)&(serv->client_addr), &serv->client_addr_len
                 );
 
                 if (client_fd < 0) {
-                    std::cerr << "Error accepting connection on port "<< serv->port << ": " << strerror(errno) << std::endl;
+                    // std::cerr << "Error accepting connection on port "<< serv->port << ": " << strerror(errno) << std::endl;
                     continue;
                 }
 
@@ -226,12 +224,9 @@ void Webserv::start(void)
             else
             {
                 // client socket: Handle client
-                std::cerr << "///handle client// " <<std::endl;
                 ServerConfig* serv = client_fd_to_server[pfd.fd];
-                std::cerr << "///handle client socket: "<<serv->client_socket <<std::endl;
                 this->handle_client(serv->client_socket, *serv);
-
-
+                
                 if (true) {
                     int client_fd = pfd.fd;  // Add this at the start of the else branch
                     close(client_fd);
@@ -240,7 +235,7 @@ void Webserv::start(void)
                     fds_to_remove.push_back(client_fd);
                     // std::cout << "Successfully closed connection (fd: " << client_fd << ")" << std::endl;
                 }
-
+                
             }
         }
     }

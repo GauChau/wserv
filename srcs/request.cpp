@@ -1,22 +1,20 @@
 #include "request.hpp"
-#include <fstream>
-#include <string>
-#include <iostream>
-#include <utility>
 
 Request::~Request()
 { }
 
-Request::Request(char *raw)
+static std::string readFile(const std::string& file_path)
 {
-	this->r_header = raw;
-	std::istringstream iss(raw);
+    std::ifstream file(file_path.c_str());
+    if (!file.is_open())
+        return ""; // cant open file
 
-	iss>> this->r_method>> this->r_location >> this->r_version;
-}
+    std::stringstream buffer;
+    buffer << file.rdbuf();  // Read entire file contents into buffer
+    return buffer.str();     // Return as a std::string
+} 
 Request::Request(char *raw, const ServerConfig &servr, int socket):_socket(socket)
 {
-	// this->r_full_request = raw;
 	this->r_header = raw;
 	std::istringstream iss(raw);
 	std::string buffer;
@@ -36,8 +34,93 @@ Request::Request(char *raw, const ServerConfig &servr, int socket):_socket(socke
 		}
 	}
 	check_allowed_methods(servr);
-	this->execute();
 }
+
+
+
+void Request::check_allowed_methods(const ServerConfig &server)
+{
+	//std::cout << "server" << std::endl;
+	std::vector<LocationConfig>::const_iterator it_loc = server.locations.begin();
+    for(;it_loc != server.locations.end();it_loc++)
+    {
+		//std::cout << it_loc->path << " vs " <<  this->r_location << std::endl;
+		if(it_loc->path == this->r_location)
+		{
+			//std::cout << "found" << std::endl;
+			this->_loc = *it_loc;
+			std::vector<std::string>::const_iterator it_meth = it_loc->allowed_methods.begin();
+			for(;it_meth != it_loc->allowed_methods.end();it_meth++)
+			{
+				//std::cout << "qq chose" << std::endl;
+				//std::cout << *it_meth << std::endl;
+			    if(this->r_method == *it_meth)
+			    {
+			        this->authorized = true;
+                    this->execute(""); // <--- then execute it
+					return ;
+			    }
+			}
+			// 405
+			this->execute("405"); // <--- then execute it
+			return ;
+		}
+    }
+	// 404 
+	this->execute("404"); // <--- then execute it
+}
+// ________________EXECUTE METHOD____________________
+void Request::execute(std::string s = "null")
+{
+	std::cout<<"\033[48;5;236mREQUEST = '" << this->r_location<<"' ";
+	if(s == "405") // 405 unallowed method
+	{
+		const std::string& 
+				body = readFile("./www/errors/405.html"),
+				contentType = "text/html";
+
+		std::string bodi = body;
+		// Append extra info to body before calculating Content-Length
+		bodi += "<h2>" + this->_loc.root + " only handles:</h2>";
+		for (size_t i = 0; i < this->_loc.allowed_methods.size(); ++i)
+			bodi += "<h2> - " + this->_loc.allowed_methods[i] + " Method</h2>";
+		std::stringstream response;
+		response << "HTTP/1.1 405 Method Not Alloweds\r\n";
+		response << "Content-Type: " << contentType << "\r\n";
+		response << "Content-Length: " << bodi.size() << "\r\n";
+		response << "Connection: close\r\n";
+		response << "\r\n"; // End of headers
+		response << bodi;
+		response << "<p>"<<this->_loc.index + " only handles: </p>";
+		for(unsigned long i = 0; i < this->_loc.allowed_methods.size(); i++)
+			response << "<p> - " + this->_loc.allowed_methods[i] + " Method</p>";
+
+		this->_ReqContent = ( response.str());
+	}else if (s == "404") // 404 not found
+	{
+		// render custom 404 page
+		const std::string& 
+				body = readFile("./www/errors/404.html"),
+				contentType = "text/html";
+		std::stringstream response;
+		response << "HTTP/1.1 404 Not Found\r\n";
+		response << "Content-Type: " << contentType << "\r\n";
+		response << "Content-Length: " << body.size() << "\r\n";
+		response << "Connection: close\r\n";
+		response << "\r\n"; // End of headers
+		response << body;
+		this->_ReqContent = ( response.str());
+	}else
+	{
+		if(!this->authorized)
+			return ;
+		else if (this->r_method == "GET")
+			this->Get();
+		else if (this->r_method == "POST")
+			this->Post();
+	}
+}
+
 
 bool writeToFile( std::string& filename, const std::string& content)
 {
@@ -45,27 +128,31 @@ bool writeToFile( std::string& filename, const std::string& content)
 
     if (!outFile)
 	{
-        std::cerr << "Error: Could not open or create file: " << filename << std::endl;
-        return false;
+		throw std::ofstream::failure("Failed to open file");
     }
-	// std::cout <<"\033[92mcontent: |"<<content<<"|\033[0m\n";
-    outFile << content<<"\n";
+    outFile<< content;//<<"\n";
+
     return true;
 }
-
-// ________________EXECUTE METHOD____________________
-void Request::execute()
+std::string extract_field_path(const std::string& buf, const std::string& field, const std::string& upload_store)
 {
-	std::cout<<"\033[48;5;236mREQUEST = '" << this->r_location<<"' \n";
-	if(!this->authorized)
-		std::cout<<"method "<<this->r_method<< ": NOT AUTHORIZED>"<<std::endl;
-	else if (this->r_method == "GET")
-		this->Get();
-	else if (this->r_method == "POST")
-		this->Post();
+	std::string::size_type pos = buf.find(field);
+	if (pos == std::string::npos)
+		return "";
 
+	pos += field.length();
+	std::string::size_type epos = buf.find("\"", pos);
+	if (epos == std::string::npos)
+		return "";
+
+	std::string result = upload_store + '/';
+	if (!result.empty() && result[0] == '/')
+		result.erase(result.begin());
+
+	result += buf.substr(pos, epos - pos);
+		return result;
 }
-
+//PROBLEM: ECRIT UN \n DE TROP A LA FIN DU FICHIER
 void Request::writeData()
 {
 	bool parsestate = false;
@@ -79,73 +166,44 @@ void Request::writeData()
 		std::string buf;
 		while(getline(s,buf))
 		{
+			
 			if (buf==this->r_boundary + "--\r")
-			{
-				std::cout<<"END OF DATAREAD\n";
 				break;
-			}
 			else if (buf==this->r_boundary+'\r')
-			{
 				parsestate = !parsestate;
-			}
 			else if (parsestate)
 			{
-				std::string::size_type pos, epos;
-
-				//GET NAMETYPE
-				pos = buf.find("name=\"");
-				if (pos != std::string::npos)
-				{
-					pos+=6;
-					epos = buf.find("\"",pos);
-					if (epos != std::string::npos)
-					{
-						this->file.name = "var/www/uploads/";
-						this->file.name += buf.substr(pos,epos-pos);
-					}
-				}
-				//GETFILENAME
-				pos = buf.find("filename=\"");
-				if (pos != std::string::npos)
-				{
-					pos+=10;
-					epos = buf.find("\"",pos);
-					if (epos != std::string::npos)
-					{
-						this->file.fname = "var/www/uploads/";
-						this->file.fname += buf.substr(pos,epos-pos);
-					}
-				}
+				// buf+="\n";
+				this->file.name = extract_field_path(buf, "name=\"", this->_loc.upload_store);
+				this->file.fname = extract_field_path(buf, "filename=\"", this->_loc.upload_store);
 
 				//GET CONTENTYPE LINE
 				getline(s,buf);
+				std::string::size_type pos;
 				pos = buf.find("Content-Type: ");
 				if (pos != std::string::npos)
-				{
 					this->file.type = buf.substr(pos+14);
-				}
+				//return to data mode
 				parsestate = !parsestate;
+
 				//SKIP EMPTY LINE
 				getline(s,buf);
-				std::cout<<"fname: "<<this->file.fname<<"\n";
-				std::ofstream outFile(this->file.fname.c_str(),std::ios::trunc);
+				std::ofstream outFile(this->file.name.c_str(),std::ios::trunc);
+				// outFile.
 				if (!outFile)
-				{
-					std::cerr << "Error: Could not open file: " << outFile << std::endl;
-					return ;
-				}
+					throw std::ofstream::failure("Failed to open file");
 			}
 			else
 			{
-				writeToFile(this->file.fname,buf);
+				writeToFile(this->file.name, buf+'\n');
 			}
 
 		}
 
 	}
 }
-
 // ________________POST METHOD____________________
+//PROBLEME POSSIBLE DE LOCATION
 void Request::Post()
 {
 	std::cout<<"|thisSOCKET:"<<this->_socket <<std::endl;
@@ -155,7 +213,6 @@ void Request::Post()
 	std::string::size_type pos = this->http_params.find("Content-Type")->second.find("boundary=");
     if (pos != std::string::npos)
 	{
-        // Get the rest of the string starting from the match
         this->r_boundary = this->http_params.find("Content-Type")->second.substr(pos+9);
 		this->r_boundary.resize(this->r_boundary.size()-1);
 		this->r_boundary = "--" + this->r_boundary;
@@ -168,12 +225,12 @@ void Request::Post()
 	if(this->http_params.find("Content-Length") != this->http_params.end())
 	{
 		content_length = atol(this->http_params.find("Content-Length")->second.c_str());
-		std::cout<<"ctn len:" <<this->http_params.find("Content-Length")->second<<std::endl;
+		// std::cout<<"ctn len:" <<this->http_params.find("Content-Length")->second<<std::endl;
 	}
 
 	//EXTRACT DATA INTO THIS->R_FULL_REQUEST
 	char buffer[1024];
-	long bytes_received = 0;  // Make sure this is initialized
+	long bytes_received = 0;
 	while (bytes_received < content_length)
 	{
 		ssize_t ret = recv(this->_socket, buffer, sizeof(buffer), 0);
@@ -185,117 +242,127 @@ void Request::Post()
 			close(this->_socket);
 			return;
 		}
-		// this->r_full_request.append(buffer, ret);
-		// std::cout<<buffer<<std::endl;
 		this->r_body.append(buffer, ret);
 		bytes_received += ret;
 	}
-	this->writeData();
-	// std::cout<<"\nHEADER HEADER SHIT START:\n" <<this->r_header<<"\nHAEADER SHIT END:\n";
-	// std::cout<<"\nBODY SHIT START:\n" <<this->r_body<<"\nfull SHIT END:\n";
-	// std::cout<<this->http_params.find("Content-Type")->second <<std::endl;
+	try
+	{
+		this->writeData();
+	}
+	catch(const std::ofstream::failure& e)
+	{
+		std::cerr << e.what() << '\n';
+	}
+	
 
 }
-// ______________________________________________
-
-
-
-
 
 // ______________________GET METHOD____________________________
-static std::string readFile(const std::string& file_path)
-{
-    std::ifstream file(file_path.c_str());
-    if (!file.is_open())
-        return ""; // cant open file
-
-    std::stringstream buffer;
-    buffer << file.rdbuf();  // Read entire file contents into buffer
-    return buffer.str();     // Return as a std::string
-}
 void Request::Get()
 {
-    std::cout << "|GET EXECUTED !!| \033[0m" << std::endl;
+   std::cout << "|GET EXECUTED !!| \033[0m" << std::endl;
 
-    std::string full_path = this->_loc.root + this->_loc.index;
+    std::string full_path = this->_loc.root; //+ this->r_location;
     std::string file_path;
 
     struct stat st;
-    if (stat(full_path.c_str(), &st) == 0)
+    // std::cout << full_path << std::endl;
+
+    if (stat(full_path.c_str(), &st) == 0) // 🛠️ REQUIRED!
     {
-        if (S_ISDIR(st.st_mode))
+        if (S_ISDIR(st.st_mode) && !this->_loc.index.empty())
         {
-            // check all  index files
-            for (unsigned long i = 0; i < this->_loc.index_files.size(); i++)
-            {
-                std::string index_path = full_path;
-            	if (!full_path.empty() && full_path[full_path.size() - 1] != '/')
-                	index_path += "/";
-                index_path += this->_loc.index_files[i];
-
-                // Check if index file exists and is readable
-                if (access(index_path.c_str(), R_OK) == 0)
-                {
-                    file_path = index_path; // Found valid index file
-                }
-            }
-
-            // no index file found, check autoindex
-            if (this->_loc.autoindex)
-            	file_path = "[AUTOINDEX]"; // special marker handled elsewhere
-            else
-            	file_path = "404"; // no autoindex and no index file => 404 scenario
+            std::cout << "directory found" << std::endl;
+            file_path = full_path + "/" + this->_loc.index;
         }
         else
         {
-            // Regular file
-            file_path = full_path;
+            std::cout << "invalid" << std::endl;
+            if (this->_loc.autoindex)
+                file_path = "[AUTOINDEX]";
+            else
+                file_path = "[403]";
         }
     }
-	// 404
-	if (file_path.empty() || file_path == "404")
+    else
     {
-        // actually hadnl 404 error
-		const std::string response =
-			"HTTP/1.1 404 Not Found\r\n"
-			"Content-Type: text/html\r\n"
-			"Content-Length: 134\r\n"
-			"Connection: close\r\n"
-			"\r\n"
-			"<html>\r\n"
-			"<head><title>WEBSERV - 404</title></head>\r\n"
-			"<body>\r\n"
-			"<h1>ERROR 404</h1>\r\n"
-			"<h2>cheh</h2>\r\n"
-			"<p>The requested URL was found on this server </p>\r\n"
-			"</body>\r\n"
-			"</html>";
-		this->_ReqContent = (response);
+        std::cerr << "stat() failed: path does not exist or access denied" << std::endl;
+        file_path = "[404]";
     }
+
+
+	std::cout << file_path << std::endl;
     //  autoindex
-    else if (file_path == "[AUTOINDEX]")
+    if (file_path == "[AUTOINDEX]" )
     {
-        // generate autoindex HTML or handle accordingly
-        // --> todo return generateAutoindexHtml();
-		        // actually hadnl 404 error
-		const std::string response =
-			"HTTP/1.1 404 Not Found\r\n"
-			"Content-Type: text/html\r\n"
-			"Content-Length: 134\r\n"
-			"Connection: close\r\n"
-			"\r\n"
-			"<html>\r\n"
-			"<head><title>WEBSERV - AUTOINDEX</title></head>\r\n"
-			"<body>\r\n"
-			"<h2>cheh</h2>\r\n"
-			"</body>\r\n"
-			"</html>";
-			this->_ReqContent = (response);
-    }
-	// default file (like index.html)
+		// Generate directory listing
+		std::stringstream listing;
+		DIR* dir = opendir(full_path.c_str());
+		if (!dir) {
+			listing << "<li><em>Directory not found: " << full_path << "</em></li>";
+		} else {
+			struct dirent* entry;
+			while ((entry = readdir(dir)) != NULL) {
+				std::string name = entry->d_name;
+				if (name == "." || name == "..") continue;
+				listing << "<li><a href=\"" << name << "\">" << name << "</a></li>\n";
+			}
+			closedir(dir);
+		}
+
+		std::string body = readFile("./www/errors/autoindex.html");
+		size_t pos = body.find("<!--CONTENT-->");
+		if (pos != std::string::npos) {
+			body.replace(pos, std::string("<!--CONTENT-->").length(), listing.str());
+		}
+		std::stringstream response;
+		response << "HTTP/1.1 200 Ok\r\n";
+		response << "Content-Type: text/html\r\n";
+		response << "Content-Length: " << body.size() << "\r\n";
+		response << "Connection: close\r\n";
+		response << "\r\n";
+		response << body;
+		this->_ReqContent = response.str();
+	}
+	// 404 no
+	else if (file_path == "[404]")
+	{
+		const std::string& 
+				body = readFile("./www/errors/404.html"),
+				contentType = "text/html";
+		std::stringstream response;
+		response << "HTTP/1.1 404 Not Found\r\n";
+		response << "Content-Type: " << contentType << "\r\n";
+		response << "Content-Length: " << body.size() << "\r\n";
+		response << "Connection: close\r\n";
+		response << "\r\n"; // End of headers
+		response << body;
+		this->_ReqContent = ( response.str());
+	}
+	// 403 forbidden
+	else if (file_path == "[403]")
+	{
+		const std::string& 
+				body = readFile("./www/errors/403.html"),
+				contentType = "text/html";
+		std::stringstream response;
+		response << "HTTP/1.1 403 Forbidden\r\n";
+		response << "Content-Type: " << contentType << "\r\n";
+		response << "Content-Length: " << body.size() << "\r\n";
+		response << "Connection: close\r\n";
+		response << "\r\n"; // End of headers
+		response << body;
+		this->_ReqContent = ( response.str());
+	}
+	else if (file_path == "[REDIRECTION]")
+	{
+		// todo
+		// handle redirection
+		
+	}
 	else
 	{
-		const std::string&
+		const std::string& 
 			body = readFile(file_path),
 			contentType = "text/html";
 
@@ -309,40 +376,11 @@ void Request::Get()
 		response << body;
 		this->_ReqContent = ( response.str());
 	}
-	std::cout << "\033[1;48;5;236m"<< this->_ReqContent << "\033[0m"<< std::endl;
+	// std::cout << "\033[1;48;5;236m"<< this->_ReqContent << "\033[0m"<< std::endl;
 }
 
 std::string Request::_get_ReqContent()
 {
 	return this->_ReqContent;
-}
-
-
-void Request::check_allowed_methods(const ServerConfig &server)
-{
-	std::vector<LocationConfig>::const_iterator it_loc = server.locations.begin();
-    for(;it_loc != server.locations.end();it_loc++)
-    {
-		std::cout << it_loc->path << " vs " <<  this->r_location << std::endl;
-		if(it_loc->path == this->r_location)
-		{
-			std::cout << "found" << std::endl;
-			this->_loc = *it_loc;
-			std::vector<std::string>::const_iterator it_meth = it_loc->allowed_methods.begin();
-			for(;it_meth != it_loc->allowed_methods.end();it_meth++)
-			{
-				// std::cout << "allowd" << std::endl;
-				std::cout<< "allowd" << *it_meth << std::endl;
-			    if(this->r_method == *it_meth)
-			    {
-			        this->authorized = true;// <--- then execute it
-					return ;
-			    }
-			}
-			return ;
-		}
-    }
-
-
 }
 // ______________________________________________

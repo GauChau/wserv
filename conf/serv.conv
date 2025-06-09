@@ -1,119 +1,132 @@
-server {
-    host 127.0.0.1;
-    port 8080;
-    server_name myserver.com;
-    error_page 404 /errors/404.html;
-    client_max_body_size 1000000;
-
-    location / {
-        root /var/www/html;
-        index index.html;
-        methods GET POST;
-        upload_store /var/www/uploads;
-        autoindex off;
-    }
-
-    location /redirect {
-        return 301 http://example.com;
-    }
-
-    location /uploads {
-        root /var/www/uploads;
-        methods POST;
-        autoindex on;
-    }
-
-    location /zinin {
-        root /var/www/uploads;
-        index upl.html
-        methods POST;
-        autoindex off;
-        upload_store /var/www/uploads;
-        client_max_body_size 10M;
-    }
-
-}
-
-#server 2 CGI...
+# server0 - home
 server {
     host 127.0.0.1;
     port 8088;
-    # This will be used if host header doesn't match the one above
-    error_page 500 /errors/500.html;
+    server_name localhost;
+
+    error_page 404 ./www/errors/404.html;
     client_max_body_size 10M;
-    server_name cgitest.com;
 
-    location /api {
-        root /var/www/api;
-        methods GET;
-        autoindex off;
-    }
+  # Main route
+  location / {
+    root ./www;
+    index index.html;
+    autoindex off;
+    allowed_methods GET;
+  }
 
-    route /redirect-me {
-        redirect http://example.com;
-    }
+  # File upload support
+  location /upload {
+    root ./www;
+    upload_dir ./uploads;
+    index postz.html;
+    autoindex off;
+    allowed_methods GET POST;
+  }
 
-    route /cgi-bin {
-        methods GET POST;
-        root /var/www/cgi-bin;
-        cgi_extension .py;
-        cgi_path /usr/bin/python3;
-    }
+  # CGI route (Python example)
+  location /cgi {
+    root ./cgi-bin;
+    cgi_extension .py;
+    allowed_methods GET POST;
+  }
+
+  # redirect example that should be a 404
+  location /old-page {
+    redirect /;
+  }
+
+  # Directory listing example
+  location /files {
+    root ./www;
+    autoindex on;
+    allowed_methods GET;
+  }
+
+
+  # just for a 403 req
+  location /null {
+    root ./www;
+    autoindex off;
+    allowed_methods GET;
+  }
 }
 
 
+# server1 - simulate api call (renders a .json)
 server {
     host 127.0.0.1;
     port 8082;
-    # This will be used if host header doesn't match the one above
-    error_page 500 /errors/500.html;
+
+    error_page 404 ./www/errors/404.html;
+
     client_max_body_size 500000;
-    server_name js.com;
+    server_name api.com;
 
     location /api {
-        root /var/www/api;
+        root ./www/api;
         methods GET;
         autoindex off;
+        index index.json;
     }
 }
 
-# Server 4 - Same port, different server name
+# server2 - same port diff server name (should work and just push a server_name and get catched by the parser)
 server {
     host 127.0.0.1;
     port 8080;
-    server_name api.local;
+    server_name apiABC.com;
 
     client_max_body_size 5M;
 
-    error_page 404 /custom-errors/api-404.html;
+    error_page 404 ./www/errors/404.html;
 
     route /api {
         methods GET POST;
-        root /var/www/api;
+        root ./www/api;
         index index.json;
     }
 
     route /api/upload {
         methods POST;
-        upload_store /var/www/api/uploads;
+        upload_store ./www/api/uploads;
     }
 }
 
-# Server 5 - On a different port
+
+# sever3 - On a different port GET renders the same index.html
 server {
-    host 0.0.0.0;
+    host 127.0.0.1;
     port 9091;
     server_name files.local;
 
-    error_page 403 /errors/403.html;
+    error_page 404 /errors/404.html;
 
     client_max_body_size 50M;
 
     route /public {
         methods GET;
-        root /var/public;
+        root ./www;
         autoindex on;
         index index.html;
     }
-}
+}   
 
+
+# sever4 - On a different port GET renders a special -> special.html
+server {
+    host 127.0.0.1;
+    port 4343;
+    server_name speciall;
+
+    error_page 404 /errors/404.html;
+
+    client_max_body_size 50M;
+
+    route / {
+        methods GET;
+        root ./public;
+        autoindex off;
+        index special.html;
+    }
+}   
