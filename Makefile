@@ -25,7 +25,7 @@ clean:
 # Full clean including executable
 fclean: clean
 	rm -f $(EXEC)
-	rm -rf ./www
+# rm -rf ./www
 	rm -rf ./uploads
 	rm -rf ./cgi-bin
 	rm -rf ./srcs/build

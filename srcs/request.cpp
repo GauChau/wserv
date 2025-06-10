@@ -12,7 +12,7 @@ static std::string readFile(const std::string& file_path)
     std::stringstream buffer;
     buffer << file.rdbuf();  // Read entire file contents into buffer
     return buffer.str();     // Return as a std::string
-} 
+}
 Request::Request(char *raw, const ServerConfig &servr, int socket):_socket(socket)
 {
 	this->r_header = raw;
@@ -66,7 +66,7 @@ void Request::check_allowed_methods(const ServerConfig &server)
 			return ;
 		}
     }
-	// 404 
+	// 404
 	this->execute("404"); // <--- then execute it
 }
 // ________________EXECUTE METHOD____________________
@@ -75,7 +75,7 @@ void Request::execute(std::string s = "null")
 	std::cout<<"\033[48;5;236mREQUEST = '" << this->r_location<<"' ";
 	if(s == "405") // 405 unallowed method
 	{
-		const std::string& 
+		const std::string&
 				body = readFile("./www/errors/405.html"),
 				contentType = "text/html";
 
@@ -99,7 +99,7 @@ void Request::execute(std::string s = "null")
 	}else if (s == "404") // 404 not found
 	{
 		// render custom 404 page
-		const std::string& 
+		const std::string&
 				body = readFile("./www/errors/404.html"),
 				contentType = "text/html";
 		std::stringstream response;
@@ -128,9 +128,10 @@ bool writeToFile( std::string& filename, const std::string& content)
 
     if (!outFile)
 	{
-		throw std::ofstream::failure("Failed to open file");
+		throw std::ofstream::failure("Failed to open file2");
     }
-    outFile<< content;//<<"\n";
+    outFile<<content;//<<"\n";
+	// outFile.close();
 
     return true;
 }
@@ -156,27 +157,38 @@ std::string extract_field_path(const std::string& buf, const std::string& field,
 void Request::writeData()
 {
 	bool parsestate = false;
+	int counter = 0;
 	if (this->r_boundary =="void")
 	{
 		return ;
 	}
 	else
 	{
+		std::cerr<<"R BODY header: |*"<<this->r_header<<"*| R dear END"<<std::endl;
+		std::cerr<<"R BODY START: |*"<<this->r_body<<"*| R BODY END"<<std::endl;
 		std::istringstream s(this->r_body);
-		std::string buf;
-		while(getline(s,buf))
+		std::string buf, trash;
+		while(getline(s,buf,'\r'))
 		{
-			
-			if (buf==this->r_boundary + "--\r")
+			std::cerr<<"gline buf: |"<<buf<<"|\n";
+			if (buf=='\n'+this->r_boundary + "--")
+			{
+				// writeToFile(this->file.name, "\r\0");
 				break;
-			else if (buf==this->r_boundary+'\r')
+			}
+			else if (buf==this->r_boundary || buf=='\n'+this->r_boundary)
+			{
+				// writeToFile(this->file.name, "\r\0");
 				parsestate = !parsestate;
+			}
 			else if (parsestate)
 			{
 				// buf+="\n";
 				this->file.name = extract_field_path(buf, "name=\"", this->_loc.upload_store);
 				this->file.fname = extract_field_path(buf, "filename=\"", this->_loc.upload_store);
 
+				// std::cerr<<"file name: "<<this->file.name<<std::endl;
+				// std::cerr<<"file FName: "<<this->file.fname<<std::endl;
 				//GET CONTENTYPE LINE
 				getline(s,buf);
 				std::string::size_type pos;
@@ -187,15 +199,18 @@ void Request::writeData()
 				parsestate = !parsestate;
 
 				//SKIP EMPTY LINE
-				getline(s,buf);
+				getline(s,trash);
+				getline(s,trash);
 				std::ofstream outFile(this->file.name.c_str(),std::ios::trunc);
 				// outFile.
 				if (!outFile)
-					throw std::ofstream::failure("Failed to open file");
+					throw std::ofstream::failure("Failed to open file1");
+				outFile.close();
 			}
 			else
 			{
-				writeToFile(this->file.name, buf+'\n');
+				// std::cerr<<"buf: |"<<buf<<"|\n";
+				writeToFile(this->file.name, buf + "\r");
 			}
 
 		}
@@ -253,7 +268,7 @@ void Request::Post()
 	{
 		std::cerr << e.what() << '\n';
 	}
-	
+
 
 }
 
@@ -327,7 +342,7 @@ void Request::Get()
 	// 404 no
 	else if (file_path == "[404]")
 	{
-		const std::string& 
+		const std::string&
 				body = readFile("./www/errors/404.html"),
 				contentType = "text/html";
 		std::stringstream response;
@@ -342,7 +357,7 @@ void Request::Get()
 	// 403 forbidden
 	else if (file_path == "[403]")
 	{
-		const std::string& 
+		const std::string&
 				body = readFile("./www/errors/403.html"),
 				contentType = "text/html";
 		std::stringstream response;
@@ -358,11 +373,11 @@ void Request::Get()
 	{
 		// todo
 		// handle redirection
-		
+
 	}
 	else
 	{
-		const std::string& 
+		const std::string&
 			body = readFile(file_path),
 			contentType = "text/html";
 
@@ -384,3 +399,68 @@ std::string Request::_get_ReqContent()
 	return this->_ReqContent;
 }
 // ______________________________________________
+
+
+// ////PROBLEM: ECRIT UN \n DE TROP A LA FIN DU FICHIER
+// void Request::writeData()
+// {
+// 	bool parsestate = false;
+// 	int counter = 0;
+// 	if (this->r_boundary =="void")
+// 	{
+// 		return ;
+// 	}
+// 	else
+// 	{
+// 		std::cerr<<"R BODY header: |*"<<this->r_header<<"*| R dear END"<<std::endl;
+// 		std::cerr<<"R BODY START: |*"<<this->r_body<<"*| R BODY END"<<std::endl;
+// 		std::istringstream s(this->r_body);
+// 		std::string buf, trash;
+// 		while(getline(s,buf))
+// 		{
+
+// 			if (buf==this->r_boundary + "--\r")
+// 			{
+// 				// writeToFile(this->file.name, "\r\0");
+// 				break;
+// 			}
+// 			else if (buf==this->r_boundary+'\r')
+// 			{
+// 				// writeToFile(this->file.name, "\r\0");
+// 				parsestate = !parsestate;
+// 			}
+// 			else if (parsestate)
+// 			{
+// 				// buf+="\n";
+// 				this->file.name = extract_field_path(buf, "name=\"", this->_loc.upload_store);
+// 				this->file.fname = extract_field_path(buf, "filename=\"", this->_loc.upload_store);
+
+// 				std::cerr<<"file name: "<<this->file.name<<std::endl;
+// 				std::cerr<<"file FName: "<<this->file.fname<<std::endl;
+// 				//GET CONTENTYPE LINE
+// 				getline(s,buf);
+// 				std::string::size_type pos;
+// 				pos = buf.find("Content-Type: ");
+// 				if (pos != std::string::npos)
+// 					this->file.type = buf.substr(pos+14);
+// 				//return to data mode
+// 				parsestate = !parsestate;
+
+// 				//SKIP EMPTY LINE
+// 				getline(s,trash);
+// 				std::ofstream outFile(this->file.name.c_str(),std::ios::trunc);
+// 				// outFile.
+// 				if (!outFile)
+// 					throw std::ofstream::failure("Failed to open file1");
+// 				outFile.close();
+// 			}
+// 			else
+// 			{
+// 				std::cerr<<"\n\nbuf: |"<<buf<<"|\n";
+// 				writeToFile(this->file.name, buf);
+// 			}
+
+// 		}
+
+// 	}
+// }
