@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Upload - Webserver.cpp</title>
+    <style>
+        @keyframes float {
+            0% { transform: translateY(0); }
+            50% { transform: translateY(-8px); }
+            100% { transform: translateY(0); }
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #004d40, #26a69a);
+            color: #e0f2f1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        .container {
+            text-align: center;
+            background-color: rgba(0, 77, 64, 0.8);
+            padding: 3rem;
+            border-radius: 16px;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+            animation: float 3s ease-in-out infinite;
+        }
+
+        h1 {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+            color: #b2dfdb;
+            text-shadow: 1px 1px #00251a;
+        }
+
+        p {
+            font-size: 1.2rem;
+            color: #a7ffeb;
+        }
+
+        form {
+            margin-top: 2rem;
+        }
+
+        label {
+            font-size: 1rem;
+            font-weight: bold;
+            display: block;
+            margin-bottom: 0.5rem;
+        }
+
+        input[type="file"] {
+            padding: 0.5rem;
+            margin-bottom: 1rem;
+            background-color: #e0f2f1;
+            border-radius: 6px;
+            border: none;
+        }
+
+        #filenameDisplay {
+            font-size: 1rem;
+            margin-bottom: 1rem;
+            color: #b2dfdb;
+            font-style: italic;
+        }
+
+        button {
+            padding: 0.75rem 1.5rem;
+            background-color: #4db6ac;
+            color: #004d40;
+            border: none;
+            border-radius: 10px;
+            font-weight: bold;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: background 0.3s ease;
+        }
+
+        button:hover {
+            background-color: #26a69a;
+        }
+
+        a {
+            display: inline-block;
+            margin-top: 1.5rem;
+            padding: 0.5rem 1rem;
+            background-color: #80cbc4;
+            color: #004d40;
+            text-decoration: none;
+            border-radius: 8px;
+            font-weight: bold;
+            transition: background 0.3s ease;
+        }
+
+        a:hover {
+            background-color: #4db6ac;
+        }
+
+        .emoji {
+            font-size: 2.5rem;
+            margin-top: 1rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>File Upload</h1>
+        <p>Upload a file to <code>/upload</code></p>
+
+        <form id="uploadForm" action="/upload" method="post" enctype="multipart/form-data" autocomplete="off">
+            <label for="fileUpload">📁 Pick a file</label>
+            <input type="file" id="fileUpload" name="file" required />
+            <div id="filenameDisplay">No file selected</div>
+            <button type="submit">🚀 Upload</button>
+        </form>
+        <div id="uploadStatus" style="margin-top: 1rem; font-weight: bold;"></div>
+
+        <a href="/">← Return Home</a>
+        <div class="emoji">🌿📤</div>
+    </div>
+
+    <script>
+        const fileInput = document.getElementById('fileUpload');
+        const fileNameDisplay = document.getElementById('filenameDisplay');
+        const uploadForm = document.getElementById('uploadForm');
+        const statusDiv = document.getElementById('uploadStatus');
+
+        fileInput.addEventListener('change', function() {
+            if (fileInput.files.length > 0) {
+                fileNameDisplay.textContent = `Selected: ${fileInput.files[0].name}`;
+            } else {
+                fileNameDisplay.textContent = "No file selected";
+            }
+        });
+
+        uploadForm.addEventListener('submit', async function(e) {
+            e.preventDefault(); // Stop default form submit
+
+            const formData = new FormData(uploadForm);
+
+            try {
+                const res = await fetch("/upload", {
+                    method: "POST",
+                    body: formData
+                });
+
+                if (res.ok) {
+                    statusDiv.textContent = "✅ Fichier uploadé avec succès !";
+                    statusDiv.style.color = "#a7ffeb";
+                } else {
+                    statusDiv.textContent = "❌ Erreur lors de l'upload.";
+                    statusDiv.style.color = "salmon";
+                }
+            } catch (err) {
+                statusDiv.textContent = "❌ Une erreur réseau est survenue.";
+                statusDiv.style.color = "red";
+            }
+        });
+        </script>
+</body>
+</html>

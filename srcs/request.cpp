@@ -12,14 +12,14 @@ static std::string readFile(const std::string& file_path)
     std::stringstream buffer;
     buffer << file.rdbuf();  // Read entire file contents into buffer
     return buffer.str();     // Return as a std::string
-}
+} 
 Request::Request(char *raw, const ServerConfig &servr, int socket)
     : _server(servr), _socket(socket)
 {
     this->r_header = raw;
     std::istringstream iss(raw);
     std::string buffer;
-	std::cerr<<"raw: "<<raw<<std::endl;
+
     iss >> this->r_method >> this->r_location >> this->r_version;
 
     while (getline(iss, buffer)) {
@@ -33,7 +33,6 @@ Request::Request(char *raw, const ServerConfig &servr, int socket)
             this->http_params.insert(std::make_pair(key, value));
         }
     }
-	std::cerr<<"pairhost: "<<this->http_params.find("Host")->second<<std::endl;
     check_allowed_methods(servr);
 }
 
@@ -62,7 +61,7 @@ void Request::check_allowed_methods(const ServerConfig &server)
 			return ;
 		}
     }
-	// 404
+	// 404 
 	this->execute("404"); // <--- then execute it
 }
 // ________________EXECUTE METHOD____________________
@@ -71,7 +70,7 @@ void Request::execute(std::string s = "null")
 	// std::cout<<"\033[48;5;236mREQUEST = '" << this->r_location<<"' ";
 	if(s == "405") // 405 unallowed method
 	{
-		const std::string&
+		const std::string& 
 				body = readFile("./www/errors/405.html"),
 				contentType = "text/html";
 
@@ -95,7 +94,7 @@ void Request::execute(std::string s = "null")
 	}/*else if (s == "404") // 404 not found
 	{
 		// render custom 404 page
-		const std::string&
+		const std::string& 
 				body = readFile("./www/errors/404.html"),
 				contentType = "text/html";
 		std::stringstream response;
@@ -115,7 +114,7 @@ void Request::execute(std::string s = "null")
 		else if (this->r_method == "POST")
 			this->Post();
 		else if (this->r_method == "DELETE")
-			this->Delete();
+			this->Delete();		
 	}
 }
 
@@ -138,8 +137,8 @@ std::string extract_field_path(const std::string& buf, const std::string& field)
 		return result;
 }
 
-// sanitize_filename  eviter:  ../../../etc/passwd
-static std::string sanitize_filename(const std::string& filename)
+// sanitize_filename  eviter:  ../../../etc/passwd 
+static std::string sanitize_filename(const std::string& filename) 
 {
 	std::string clean;
     for (size_t i = 0; i < filename.size(); ++i) {
@@ -163,11 +162,10 @@ void	Request::writeData()
 	else
 	{
 		std::istringstream s(this->r_body);
-		// std::cerr<<"rbody is: |"<<this->r_body<<"|"<<std::endl;
 		std::string buf;
 		while(getline(s,buf))
 		{
-			// std::cerr<<"fbuf is: |"<<buf<<"|"<<std::endl;
+			
 			if (buf==this->r_boundary + "--\r")
 				break;
 			else if (buf==this->r_boundary+'\r')
@@ -196,19 +194,18 @@ void	Request::writeData()
 
 				// outFile.
 				if (!outFile)
-					throw std::ofstream::failure("1Failed to open file");
+					throw std::ofstream::failure("Failed to open file");
 			}
 			else
 			{
-
+				
 				std::string& filename = this->file.name;
 				const std::string& content = buf+'\n';
-
+				
 				std::ofstream outFile(filename.c_str(),std::ios::app);  // Creates the file if it doesn't exist
 				if (!outFile)
 				{
-					std::cerr<<"filenameis: |"<<filename.c_str()<<"|"<<std::endl;
-					throw std::ofstream::failure("2Failed to open file");
+					throw std::ofstream::failure("Failed to open file");
 				}
 				outFile<< content;//<<"\n";
 				// writeToFile(this->file.name, buf + \n);
@@ -222,10 +219,7 @@ void	Request::writeData()
 void Request::Post()
 {
 	//EXTRACT BOUNDARY
-	std::map<std::string,std::string>::iterator it = this->http_params.find("Content-Type");
-	if(it == this->http_params.end())
-		return ;
-	std::string::size_type pos = it->second.find("boundary=");
+	std::string::size_type pos = this->http_params.find("Content-Type")->second.find("boundary=");
     if (pos != std::string::npos)
 	{
         this->r_boundary = this->http_params.find("Content-Type")->second.substr(pos+9);
@@ -317,7 +311,7 @@ void Request::Delete()
 		this->http_params["X-Filename"].length() != 0 && getcwd(buf, sizeof(buf)))
 	{
 	    struct stat buffer;
-		const std::string &full_path = std::string(buf)
+		const std::string &full_path = std::string(buf) 
 				// + this->_loc.root.substr(1)
 				+ this->_loc.upload_store.substr(1)
 				+ "/"
@@ -337,13 +331,13 @@ void Request::Delete()
 		}
 	}else
 	{
-		std::string response =
+		std::string response = 
             "HTTP/1.1 400 Bad Request\r\n"
             "Content-Length: 0\r\n"
             "Connection: close\r\n\r\n";
         send(this->_socket, response.c_str(), response.size(), 0);
     	close(this->_socket);
-		return;
+		return;	
 	}
     // e.g., "/uploads/file.txt" or "/index.html"
 	// std::string root = this->_loc.root;   // e.g. "/var/www/ur_site"
@@ -354,7 +348,7 @@ void Request::Delete()
     // if (path.find("..") != std::string::npos)
     // {
     //     // return some error indicator, or sanitize path
-	// 	std::string response =
+	// 	std::string response = 
     //         "HTTP/1.1 404 Not Found\r\n"
     //         "Content-Length: 0\r\n"
     //         "Connection: close\r\n\r\n";
@@ -364,7 +358,7 @@ void Request::Delete()
 	// }
 
     // // force root to nd w a slash
-	// if (!root.empty() && root[root.size() - 1] != '/')
+	// if (!root.empty() && root[root.size() - 1] != '/') 
     //    root += "/";
 
     // // rmv leading slash path to avoid dbl slash
@@ -376,7 +370,7 @@ void Request::Delete()
     // Try to delete the file
     if (std::remove(f_path.c_str()) == 0)
     {
-        std::string response =
+        std::string response = 
             "HTTP/1.1 200 OK\r\n"
             "Content-Length: 0\r\n"
             "Connection: close\r\n\r\n";
@@ -386,7 +380,7 @@ void Request::Delete()
     else
     {
         // file deletion failed, send 404 or 403
-        std::string response =
+        std::string response = 
             "HTTP/1.1 404 Not Found\r\n"
             "Content-Length: 0\r\n"
             "Connection: close\r\n\r\n";
@@ -474,7 +468,7 @@ void Request::Get()
 				break;
 			}
 		}
-		const std::string&
+		const std::string& 
 				body = readFile(path_404),
 				contentType = "text/html";
 		std::stringstream response;
@@ -502,7 +496,7 @@ void Request::Get()
 				break;
 			}
 		}
-		const std::string&
+		const std::string& 
 				body = readFile(path_403),
 				contentType = "text/html";
 		*/
@@ -518,7 +512,7 @@ void Request::Get()
 				break;
 			}
 		}
-		const std::string&
+		const std::string& 
 				body = readFile(path_403),
 				contentType = "text/html";
 		std::stringstream response;
@@ -534,11 +528,11 @@ void Request::Get()
 	{
 		// todo
 		// handle redirection
-
+		
 	}
 	else
 	{
-		const std::string&
+		const std::string& 
 			body = readFile(file_path),
 			contentType = "text/html";
 

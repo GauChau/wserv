@@ -54,7 +54,7 @@ void Webserv::init(void)
                 continue;;
             }
         }
-     
+
         memset(&serv_.server_addr, 0, sizeof(serv_.server_addr));
         serv_.server_addr.sin_family = AF_INET;
         serv_.server_addr.sin_port = htons(serv_.port);
@@ -69,7 +69,7 @@ void Webserv::init(void)
             exit(EXIT_FAILURE);
         }
 
-  
+
         // bind socket to address and port
         // (turns [address, port] -> [fd] )
         if (bind(serv_.server_socket, (struct sockaddr*)&serv_.server_addr, sizeof(serv_.server_addr)) < 0)
@@ -91,7 +91,7 @@ void Webserv::init(void)
             close(serv_.server_socket);
             return;
         }
-        std::cout << "\033[32mServer[" << i << "] is ready on  " << serv_.host 
+        std::cout << "\033[32mServer[" << i << "] is ready on  " << serv_.host
                 << ":" << serv_.port << " ["<< serv_.server_name << "]" << "\033[0m "<< std::endl;
     }
 }
