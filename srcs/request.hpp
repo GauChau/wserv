@@ -38,10 +38,12 @@ class Request
       std::string _get_ReqContent();
 
     private:
-		int _socket;
+        const ServerConfig &_server;
+		    int _socket;
         std::map<std::string,std::string> http_params;
-
-		std::string r_method, r_location, r_version, r_boundary, r_body, r_header;
+		    std::string r_method, r_location,
+                    r_version, r_boundary, 
+                    r_body, r_header;
         LocationConfig _loc;
         file_id file;
         bool authorized;

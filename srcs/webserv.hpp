@@ -21,6 +21,8 @@
 #include <filesystem>
 #include <sys/stat.h>
 #include <algorithm>
+#include <fcntl.h>
+#include <set>
 
 #define PORT 8080
 #define BACKLOG 10
@@ -89,7 +91,6 @@ struct ServerConfig
 class Webserv
 {
     private:
-        void handle_client(int client_socket, const ServerConfig &serv);
         std::vector<ServerConfig> servers;
     public:
         Webserv(void);
