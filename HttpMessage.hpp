@@ -42,7 +42,8 @@ class HttpMessage
 
 	private:
 	int _socket;
-	std::string _method, _location, _version, _header, _boundary;
+	std::string _method, _location, _version, _header, _boundary, _data;
+	ssize_t _contentlen;
 	std::vector<std::pair
 					<std::map<std::string,std::string>,
 					std::string>> _messagevector;
