@@ -1,12 +1,12 @@
 # script to create the html files needed
 
 #webserv/
-#├── www/             # Static files go here
+#├── www/             # static files go here
 #│   └── index.html
 #├── uploads/         # File uploads will be stored here
 #├── cgi-bin/         # CGI scripts (e.g., .py, .php) go here
 #│   └── hello.py
-#└── server.conf      # Your configuration fil
+#└── server.conf      # cconf files
 
 # at root
 rm -rf ./www
@@ -24,19 +24,80 @@ mkdir -p ./public
 
 chmod -R 755 ./
 
+
+
 # default python script for CGI
 cat << 'EOF' > ./cgi-bin/hello.py
-#!/usr/bin/python3
-import os
+#!/usr/bin/env python3
 
-print("Content-Type: text/html\n")
-print("<html><body>")
-print("<h1>Hello from CGI!</h1>")
-print(f"<p>PATH_INFO: {os.environ.get('PATH_INFO')}</p>")
-print("</body></html>")
+import os
+import sys
+import platform
+
+method = os.environ.get('REQUEST_METHOD', '')
+body = ''
+if method == 'POST':
+    try:
+        content_length = int(os.environ.get('CONTENT_LENGTH', 0))
+        body = sys.stdin.read(content_length)
+    except:
+        body = '[couldn’t read POST data]'
+
+# env info
+os_name = platform.system()
+os_version = platform.version()
+python_version = platform.python_version()
+cwd = os.getcwd()
+user = os.environ.get('USER') or os.environ.get('USERNAME') or 'Unknown'
+
+print("Content-Type: text/plain\r\n")
+
+print("✅ CGI script executed successfully!\n")
+print(f"👤 User: {user}")
+print(f"📦 Python version: {python_version}")
+print(f"🖥 OS: {os_name} {os_version}")
+print(f"📂 Current working directory: {cwd}")
+print(f"🧾 Method: {method}")
+print(f"📨 POST body: {body}")
 EOF
 
-# chmod +x ./cgi-bin/hello.py
+chmod +x ./cgi-bin/hello.py
+# curl http://localhost:8080/cgi-bin/hello.py
+# curl -X POST -d "foo=bar&baz=qux" http://localhost:8080/cgi-bin/hello.py
+
+
+
+
+# Ruby CGI script
+cat << 'EOF' > ./cgi-bin/hello.rb
+#!/usr/bin/env ruby
+
+require 'cgi'
+require 'etc'
+
+cgi = CGI.new
+method = ENV['REQUEST_METHOD'] || ''
+body = ''
+
+# sys info
+ruby_version = RUBY_VERSION
+os_name = RUBY_PLATFORM
+cwd = Dir.pwd
+user = Etc.getlogin || ENV['USER'] || ENV['USERNAME'] || 'Unknown'
+
+puts "Content-Type: text/plain\r\n"
+
+puts "✅ CGI script executed successfully!\n\n"
+puts "👤 User: #{user}"
+puts "💎 Ruby version: #{ruby_version}"
+puts "🖥 Platform: #{os_name}"
+puts "📂 Current working directory: #{cwd}"
+puts "🧾 Method: #{method}"
+EOF
+
+# Make it executable
+chmod +x ./cgi-bin/hello.rb
+# curl "http://localhost:8080/cgi-bin/hello.rb?name=zeu"
 
 
 
@@ -179,7 +240,7 @@ cat << 'EOF' > ./www/index.html
         <div class="links lk">
             <a href="/upload">UPLOAD +</a>
             <a href="/delete-upload">DELETE -</a>
-            <a href="/cgi">CGI Endpoint</a>
+            <a href="/page-cgi">CGI Endpoint</a>
         </div>
         <div class="ports">
             <h3>Available Servers</h3>
@@ -195,6 +256,10 @@ cat << 'EOF' > ./www/index.html
 </body>
 </html>
 EOF
+
+
+
+
 
 
 # create 404.html
@@ -389,6 +454,9 @@ cat << 'EOF' > ./www/default/404.html
 EOF
 
 
+
+
+
 # create blue-themed 403.html
 cat << 'EOF' > ./www/default/403.html
 <!DOCTYPE html>
@@ -480,6 +548,8 @@ cat << 'EOF' > ./www/default/403.html
 EOF
 
 
+
+
 # create 404.html
 cat << 'EOF' > ./www/api.html
 <!DOCTYPE html>
@@ -550,6 +620,7 @@ cat << 'EOF' > ./www/api.html
 </body>
 </html>
 EOF
+
 
 
 
@@ -634,6 +705,8 @@ cat << 'EOF' > ./www/errors/403.html
 EOF
 
 
+
+
 # create 405.html non - autoindexer
 cat << 'EOF' > ./www/errors/405.html
 <!DOCTYPE html>
@@ -714,6 +787,10 @@ cat << 'EOF' > ./www/errors/405.html
 </body>
 </html>
 EOF
+
+
+
+
 
 
 # create 403.html autoindexer
@@ -988,6 +1065,9 @@ cat << 'EOF' > ./public/indexx.html
 </html>
 EOF
 
+
+
+
 # create index.json
 cat << 'EOF' > ./www/api/index.json
 {
@@ -1025,6 +1105,10 @@ cat << 'EOF' > ./www/api/index.json
   }
 }
 EOF
+
+
+
+
 
 # create postz.html
 cat << 'EOF' > ./www/postz.html
@@ -1196,6 +1280,11 @@ cat << 'EOF' > ./www/postz.html
 </body>
 </html>
 EOF
+
+
+
+
+
 
 # create deletz.html
 cat << 'EOF' > ./www/deletz.html
@@ -1371,3 +1460,167 @@ cat << 'EOF' > ./www/deletz.html
 </body>
 </html>
 EOF
+
+
+
+
+
+
+# create cgi-tester.html
+cat << 'EOF' > ./www/cgi-tester.html
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>CGI Script Tester</title>
+    <style>
+        @keyframes float {
+            0% { transform: translateY(0); }
+            50% { transform: translateY(-8px); }
+            100% { transform: translateY(0); }
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #0a0f2c, #1c2e4a);
+            color: #dfe6f3;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        .container {
+            background-color: rgba(10, 15, 44, 0.95);
+            padding: 3rem;
+            border-radius: 16px;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+            text-align: center;
+            animation: float 3s ease-in-out infinite;
+            max-width: 700px;
+            width: 90%;
+        }
+
+        h1 {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+            color: #a6bdfc;
+            text-shadow: 1px 1px #000814;
+        }
+
+        p {
+            font-size: 1.2rem;
+            color: #a0c4ff;
+        }
+
+        button {
+            padding: 0.75rem 1.5rem;
+            background-color: #3f51b5;
+            color: #ffffff;
+            border: none;
+            border-radius: 10px;
+            font-weight: bold;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: background 0.3s ease;
+            margin: 0.5rem;
+        }
+
+        button:hover {
+            background-color: #303f9f;
+        }
+
+        #output {
+            margin-top: 2rem;
+            background-color: #e3e8f7;
+            color: #0a0f2c;
+            padding: 1rem;
+            border-radius: 12px;
+            font-family: monospace;
+            white-space: pre-wrap;
+            text-align: left;
+            box-shadow: 0 4px 16px rgba(0,0,0,0.2);
+        }
+
+        a {
+            display: inline-block;
+            margin-top: 2rem;
+            padding: 0.5rem 1rem;
+            background-color: #5c6bc0;
+            color: #ffffff;
+            text-decoration: none;
+            border-radius: 8px;
+            font-weight: bold;
+            transition: background 0.3s ease;
+        }
+
+        a:hover {
+            background-color: #3949ab;
+        }
+
+        .emoji {
+            font-size: 2rem;
+            margin-top: 1rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🧪 CGI Script Tester</h1>
+        <p>Click a button to test a CGI script:</p>
+
+        <button onclick="runCGI('http://127.0.0.1:8088/cgi-py')">Run hello.py (GET)</button>
+        <button onclick="runCGIPost('http://127.0.0.1:8088/cgi-py')">hello.py (POST)</button>
+        <button onclick="runCGI('http://127.0.0.1:8088/cgi-rb')">RUBY script (GET)</button>
+        <button onclick="runCGIPost('http://127.0.0.1:8088/cgi-rb')">405 hello.rb (POST)</button>
+
+        <div id="output">Script output will appear here...</div>
+
+        <a href="http://127.0.0.1:8088">← Return Home</a>
+        <div class="emoji">🛰️⚙️🌌</div>
+    </div>
+
+    <script>
+        function runCGI(url) {
+            fetch(url)
+                .then(res => {
+                    if (!res.ok) {
+                        // If status is not 200, show the status code instead of the body
+                        document.getElementById('output').textContent = "Error " + res.status + ": " + res.statusText;
+                        return;
+                    }
+                    return res.text().then(text => {
+                        document.getElementById('output').textContent = text;
+                    });
+                })
+                .catch(err => {
+                    document.getElementById('output').textContent = "Fetch error: " + err;
+                });
+        }
+
+        function runCGIPost(url) {
+            fetch(url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: 'name=Webserv&test=123'
+            })
+            .then(res => {
+                if (!res.ok) {
+                    document.getElementById('output').textContent = "Error " + res.status + ": " + res.statusText;
+                    return;
+                }
+                return res.text().then(text => {
+                    document.getElementById('output').textContent = text;
+                });
+            })
+            .catch(err => {
+                document.getElementById('output').textContent = "Fetch error: " + err;
+            });
+        }
+    </script>
+</body>
+</html>

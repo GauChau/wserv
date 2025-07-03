@@ -14,8 +14,8 @@
 #include <poll.h>
 #include <stdexcept>  // for std::invalid_argument
 #include <vector>
-#include <map> 
-#include <stack> 
+#include <map>
+#include <stack>
 #include <sstream>
 #include <arpa/inet.h>
 #include <filesystem>
@@ -23,13 +23,13 @@
 #include <algorithm>
 #include <fcntl.h>
 #include <set>
-
+#include <sys/wait.h>
 #define PORT 8080
 #define BACKLOG 10
 #define MAX_EVENTS 10
 
 /*
-    routes examples: 
+    routes examples:
         route / {
             methods GET POST;
             root /var/www/html;
@@ -51,16 +51,16 @@
     };
 */
 
-struct LocationConfig 
+struct LocationConfig
 {
-    std::string 
+    std::string
         path,
         root,
         cgi_extension,
         cgi_path,
         index,
         upload_store;
-    std::vector<std::string> 
+    std::vector<std::string>
         allowed_methods;
     std::string redirect_url;
     bool autoindex;
@@ -68,23 +68,23 @@ struct LocationConfig
 
 struct ServerConfig
 {
-    std::string 
+    std::string
         host,
         server_name;
-    int 
+    int
         port,
         server_socket,
         client_socket;
-    struct sockaddr_in 
-        server_addr, 
+    struct sockaddr_in
+        server_addr,
         client_addr;
-    socklen_t 
+    socklen_t
         client_addr_len;
-    size_t 
+    size_t
         client_max_body_size;
     std::vector<LocationConfig>
         locations;
-    std::vector<std::pair<unsigned int, std::string> > 
+    std::vector<std::pair<unsigned int, std::string> >
         error_pages;
 };
 
@@ -96,7 +96,7 @@ class Webserv
         Webserv(void);
         ~Webserv();
         void init(void);
-        void start(void);   
+        void start(void);
         bool parseConfigFile(const std::string& filename);
 };
 

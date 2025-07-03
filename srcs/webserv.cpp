@@ -153,12 +153,14 @@ static bool handle_client(int client_socket, const ServerConfig &serv)
         close(client_socket);
         return true;
     }
-
+    std::ofstream outfile("raw_b4", std::ios::binary | std::ios::trunc);
+		outfile.write(buffer, sizeof(buffer)); outfile.close();
     buffer[bytes_received] = '\0';
 
     // log  received HTTP request
     // std::cout << "\033[36m>>>>>>>>> Received a request! <----\n" << buffer << "\033[0m"<< std::endl;
-    Request R(buffer, serv, client_socket);
+    // std::cerr<<"bytes rec "<<bytes_received<<std::endl;
+    Request R(buffer, serv, client_socket, bytes_received);
     std::string response = R._get_ReqContent();
     ssize_t sent = send(client_socket, response.c_str(), response.size(), 0);
     if (sent < 0)
@@ -168,8 +170,6 @@ static bool handle_client(int client_socket, const ServerConfig &serv)
     close(client_socket);
     return true;
 }
-
-
 
 
 
