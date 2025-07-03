@@ -87,32 +87,11 @@ Request::Request(char *raw, const ServerConfig &servr, int socket, ssize_t bytes
 	{
 		header.clear();
 		this->_bytes_rec -= pos + 4;
-		// std::string body(raw+pos+4, this->_bytes_rec);
 		std::string body;
 		body.append(raw+pos+4, this->_bytes_rec);
 		header.append(raw, pos);
 		sum = header + body;
-		// this->_bytes_rec = body.size();
 		this->r_body = body;
-
-		// std::ofstream outfile("raw", std::ios::binary | std::ios::trunc);
-		// outfile.write(raw,this->_bytes_rec + pos-4); outfile.close();
-
-		// std::ofstream outfile1("header", std::ios::binary | std::ios::trunc);
-		// outfile1.write(raw, pos); outfile1.close();
-
-		// std::ofstream outfile2("bodyraw", std::ios::binary | std::ios::trunc);
-		// outfile2.write(raw+pos+4, this->_bytes_rec); outfile2.close();
-		// std::ofstream outfile4("bodyappend", std::ios::binary | std::ios::trunc);
-		// outfile4.write(body.data(), this->_bytes_rec); outfile4.close();
-
-		// std::cerr<<"bytes rec :"<<this->_bytes_rec<<"  bodysize: "<< body.length()<<"bodyn+header"<<body.length() + header.length() <<std::endl;
-
-
-		// std::ofstream outfile3("header + body", std::ios::binary | std::ios::trunc);
-		// outfile3.write(header.data(), pos);  outfile3.close();
-		// outfile3.open("header + body", std::ios::binary | std::ios::app);
-		// outfile3.write(body.data(), this->_bytes_rec);  outfile3.close();
 	}
 
     while (getline(iss, buffer)) {
@@ -214,7 +193,7 @@ void Request::execute(std::string s = "null")
 //PROBLEM: ECRIT UN \n DE TROP A LA FIN DU FICHIER
 void	Request::writeData()
 {
-	std::cerr<<"111\n";
+	
 	bool parsestate = false;
 	if (this->r_boundary =="void")
 	{
@@ -222,10 +201,8 @@ void	Request::writeData()
 	}
 	else
 	{
-		// std::cerr<<"body:"<<this->r_body<<"\n";
 		std::istringstream s(this->r_body);
 		std::string buf;
-		// char buf[2048];
 		while(getline(s,buf))
 		{
 
@@ -253,9 +230,7 @@ void	Request::writeData()
 				std::string safe_name = sanitize_filename(this->file.fname);
 				std::string full_path = this->_loc.upload_store + "/" + safe_name;
 				this->file.name = full_path;
-				// std::cerr <<"fpath:"<< full_path.c_str();
 				std::ofstream outFile(full_path.c_str(), std::ios::trunc | std::ios::binary);
-				// std::cerr << full_path.c_str();
 				// outFile.
 				if (!outFile)
 					throw std::ofstream::failure("aFailed to open file");
@@ -265,7 +240,6 @@ void	Request::writeData()
 
 				std::string& filename = this->file.name;
 				const std::string& content = buf+'\n';
-				// std::cerr <<"fname:"<< filename.c_str();
 				std::ofstream outFile(filename.c_str(),std::ios::app | std::ios::binary);  // Creates the file if it doesn't exist
 				if (!outFile)
 				{
@@ -290,8 +264,6 @@ void Request::Post()
         this->r_boundary = this->http_params.find("Content-Type")->second.substr(pos+9);
 		this->r_boundary.resize(this->r_boundary.size()-1);
 		this->r_boundary = "--" + this->r_boundary;
-		std::ofstream outfile("boundary", std::ios::binary | std::ios::trunc);
-		outfile <<this->r_boundary; outfile.close();
 		if (*this->r_boundary.rbegin()==' ')
 			this->r_boundary.resize(this->r_boundary.size()-1);
 
@@ -317,10 +289,8 @@ void Request::Post()
 
 	//EXTRACT DATA INTO THIS->R_FULL_REQUEST
 	char buffer[2048];
-	// std::cerr<<"brec:"<<bytes_received<<"ctn len"<<content_length<<"\n";
 	while (this->_bytes_rec < content_length)
 	{
-		std::cerr<<"brec:"<<this->_bytes_rec<<"\n";
 		ssize_t ret = recv(this->_socket, buffer, sizeof(buffer), 0);
 		if (ret == 0)
 			break;
@@ -345,14 +315,7 @@ void Request::Post()
 		}
 		this->ret = ret;
 		this->r_body.append(buffer, sizeof(buffer));
-		// std::cerr<<"rbody:"<<this->r_body<<"\n";
 		this->_bytes_rec += ret;
-		std::ofstream outfile("raw", std::ios::binary | std::ios::app);
-		// outfile <<buffer; outfile.close();
-		outfile.write(buffer, sizeof(buffer));outfile.close();
-		std::ofstream outfile2("rbodyraw", std::ios::binary | std::ios::app);
-		// outfile <<buffer; outfile.close();
-		outfile2.write(this->r_body.data(), this->r_body.size());outfile2.close();
 	}
 	try
 	{
