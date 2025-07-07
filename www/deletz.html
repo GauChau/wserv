@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <title>Delete Files - Webserver.cpp</title>
+    <style>
+        @keyframes float {
+            0% { transform: translateY(0); }
+            50% { transform: translateY(-8px); }
+            100% { transform: translateY(0); }
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #4a148c, #7b1fa2);
+            color: #f3e5f5;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        .container {
+            text-align: center;
+            background-color: rgba(74, 20, 140, 0.85);
+            padding: 3rem;
+            border-radius: 16px;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+            animation: float 3s ease-in-out infinite;
+            max-height: 90vh;
+            overflow-y: auto;
+            width: 320px;
+        }
+
+        h1 {
+            font-size: 2.5rem;
+            margin-bottom: 1.5rem;
+            color: #ce93d8;
+            text-shadow: 1px 1px #12005e;
+        }
+
+        form {
+            margin-bottom: 1rem;
+        }
+
+        input[type="text"] {
+            width: 100%;
+            padding: 0.5rem;
+            font-size: 1rem;
+            border-radius: 8px;
+            border: none;
+            margin-bottom: 0.8rem;
+        }
+
+        button {
+            padding: 0.5rem 1rem;
+            background-color: #ab47bc;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-weight: bold;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: background 0.3s ease;
+            width: 100%;
+        }
+
+        button:hover {
+            background-color: #9c27b0;
+        }
+
+        #result {
+            min-height: 1.5rem;
+            font-weight: bold;
+            margin-top: 0.5rem;
+            color: #f3e5f5;
+            text-shadow: 1px 1px #12005e;
+        }
+
+        a {
+            display: inline-block;
+            margin-top: 1.5rem;
+            padding: 0.5rem 1rem;
+            background-color: #ba68c8;
+            color: #4a148c;
+            text-decoration: none;
+            border-radius: 8px;
+            font-weight: bold;
+            transition: background 0.3s ease;
+        }
+
+        a:hover {
+            background-color: #ab47bc;
+        }
+
+        .emoji {
+            font-size: 2.5rem;
+            margin-top: 1.5rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Delete a File</h1>
+        <form id="deleteForm">
+            <input 
+                type="text" 
+                id="filename" 
+                name="filename" 
+                placeholder="Enter filename to delete" 
+                required 
+                autocomplete="off"
+            />
+            <button type="submit">Delete File</button>
+        </form>
+        <div id="result"></div>
+        <a href="/">← Return Home</a>
+        <div class="emoji">📁🗑️💜</div>
+    </div>
+
+    <script>
+        document.getElementById('deleteForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            const filename = document.getElementById('filename').value.trim();
+
+            if (filename.length === 0) {
+                alert('Please enter a filename');
+                return;
+            }
+
+            if (filename.includes('/') || filename.includes('\\')) {
+                alert('Invalid filename: slashes are not allowed');
+                return;
+            }
+
+            fetch('/delete-upload', {
+                method: 'DELETE',
+                headers: {
+                    'X-Filename': filename
+                }
+            })
+            .then(response => {
+                if (!response.ok) {
+                    // Handle different HTTP errors explicitly
+                    if (response.status === 404) {
+                        throw new Error('File not found');
+                    } else if (response.status === 400) {
+                        throw new Error('Bad request');
+                    } else if (response.status === 500) {
+                        throw new Error('Server error');
+                    } else {
+                        throw new Error('Unexpected error: ' + response.status);
+                    }
+                }
+                return response.text();
+            })
+            .then(text => {
+                document.getElementById('result').textContent = text;
+            })
+            .catch(err => {
+                // Show the error message nicely on the page instead of console only
+                document.getElementById('result').textContent = err.message;
+                console.error(err);
+            });
+        });
+    </script>
+</body>
+</html>

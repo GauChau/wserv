@@ -209,9 +209,9 @@ void	Request::writeData()
 			if (buf==this->r_boundary + "--\r"){
 				break;}
 			else if (buf==this->r_boundary+'\r')
-				{
-					parsestate = !parsestate;
-				}
+			{
+				parsestate = !parsestate;
+			}
 			else if (parsestate)
 			{
 				this->file.fname = extract_field_path(buf, "filename=\"");
@@ -231,7 +231,6 @@ void	Request::writeData()
 				std::string full_path = this->_loc.upload_store + "/" + safe_name;
 				this->file.name = full_path;
 				std::ofstream outFile(full_path.c_str(), std::ios::trunc | std::ios::binary);
-				// outFile.
 				if (!outFile)
 					throw std::ofstream::failure("aFailed to open file");
 			}
@@ -242,12 +241,8 @@ void	Request::writeData()
 				const std::string& content = buf+'\n';
 				std::ofstream outFile(filename.c_str(),std::ios::app | std::ios::binary);  // Creates the file if it doesn't exist
 				if (!outFile)
-				{
 					throw std::ofstream::failure("bFailed to open file");
-				}
-				// outFile.write(content, );//<<"\n";
 				outFile<<content;
-				// writeToFile(this->file.name, buf + \n);
 			}
 
 		}
@@ -428,7 +423,7 @@ void Request::Get()
     if (stat(full_path.c_str(), &st) == 0) // 🛠️ REQUIRED!
     {
         if (S_ISDIR(st.st_mode) && (!this->_loc.index.empty() ||
-			((&(this->_loc.cgi_extension) != nullptr && !this->_loc.cgi_extension.empty())) ))
+			((&(this->_loc.cgi_extension) != NULL && !this->_loc.cgi_extension.empty())) ))
         {
             file_path = full_path + "/" + this->_loc.index;
         }
@@ -540,7 +535,7 @@ void Request::Get()
 	else
 	{
 		// cgi or default
-		if(&(this->_loc.cgi_extension) == nullptr || this->_loc.cgi_extension.empty())
+		if(&(this->_loc.cgi_extension) == NULL || this->_loc.cgi_extension.empty())
 		{
 			const std::string&
 				body = readFile(file_path),
