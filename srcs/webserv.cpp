@@ -132,7 +132,7 @@ void Webserv::init(void)
 static bool handle_client(int client_socket, const ServerConfig &serv)
 {
     char buffer[2048];
-    ssize_t bytes_received = recv(client_socket, buffer, sizeof(buffer) - 1, 0);
+    ssize_t bytes_received = recv(client_socket, buffer, sizeof(buffer), 0);
 
     if (bytes_received < 0)
     {
@@ -153,7 +153,7 @@ static bool handle_client(int client_socket, const ServerConfig &serv)
         close(client_socket);
         return true;
     }
-    buffer[bytes_received] = '\0';
+    // buffer[bytes_received] = '\0';
 
     // log  received HTTP request
     Request R(buffer, serv, client_socket, bytes_received);

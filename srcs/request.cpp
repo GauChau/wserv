@@ -193,7 +193,7 @@ void Request::execute(std::string s = "null")
 //PROBLEM: ECRIT UN \n DE TROP A LA FIN DU FICHIER
 void	Request::writeData()
 {
-	
+
 	bool parsestate = false;
 	if (this->r_boundary =="void")
 	{
@@ -201,7 +201,7 @@ void	Request::writeData()
 	}
 	else
 	{
-		std::istringstream s(this->r_body);
+		std::istringstream s(this->r_body, std::ios::binary);
 		std::string buf;
 		while(getline(s,buf))
 		{
@@ -314,7 +314,7 @@ void Request::Post()
 			}
 		}
 		this->ret = ret;
-		this->r_body.append(buffer, sizeof(buffer));
+		this->r_body.append(buffer, ret);
 		this->_bytes_rec += ret;
 	}
 	try
