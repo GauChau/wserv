@@ -78,6 +78,8 @@ void Webserv::init(void)
             if (errno == EADDRINUSE){
                 std::cerr << "\033[36mServer["<<i << "] port "<<  serv_.host << ":" << serv_.port << " is already in use! \033[0m" << std::endl;
                 close(serv_.server_socket);
+                this->servers.erase(this->servers.begin() + i);
+                i--;
                 continue;
             }
             std::cerr << "Error binding socket: " << strerror(errno) << std::endl;
@@ -134,7 +136,6 @@ static bool handle_client(int client_socket, const ServerConfig &serv)
 {
     char buffer[2048];
     ssize_t bytes_received = recv(client_socket, buffer, sizeof(buffer), 0);
-
     if (bytes_received < 0)
     {
         if (errno == EAGAIN || errno == EWOULDBLOCK)
@@ -143,18 +144,20 @@ static bool handle_client(int client_socket, const ServerConfig &serv)
             return false; // don't close socket, let poll try again
         }
         std::cerr << "\033[31m[x] recv() error on client " << client_socket
-                  << ": " << strerror(errno) << "\033[0m\n";
+        << ": " << strerror(errno) << "\033[0m\n";
         close(client_socket);
         return true; // done with this socket (error, cleanup)
     }
     else if (bytes_received == 0)
     {
+        std::cerr<<"RECV:\n" <<buffer<<std::endl;
         // Client closed connection
         std::cerr << "\033[33m[~] Client disconnected: " << client_socket << "\033[0m\n";
         close(client_socket);
         return true;
     }
     // buffer[bytes_received] = '\0';
+
 
     // log  received HTTP request
     Request R(buffer, serv, client_socket, bytes_received);
@@ -200,6 +203,7 @@ void Webserv::start(void)
     while (true)
     {
         int ret = poll(poll_fds.data(), poll_fds.size(), -1);
+
         if (ret == -1)
         {
             perror("poll");
@@ -211,7 +215,6 @@ void Webserv::start(void)
         for (size_t i = 0; i < poll_fds.size(); ++i)
         {
             struct pollfd& pfd = poll_fds[i];
-
             if (!(pfd.revents & POLLIN))
                 continue;
 

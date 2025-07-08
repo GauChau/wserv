@@ -250,7 +250,7 @@ cat << 'EOF' > ./www/index.html
             <a href="http://127.0.0.1:4343" target="_blank">special</a>
         </div>
     </div>
-    <h5>all rights reserved. 
+    <h5>all rights reserved.
         <a href="https://github.com/youradrien">le j</a>
     </h5>
 </body>
@@ -921,12 +921,12 @@ cat << 'EOF' >> ./www/campton.html
     </header>
     <main>
         <p>
-            Nestled in the heart of the countryside, Campton is a small town with a big heart. 
-            Whether you're here for the scenic views, local hospitality, or just passing through — 
+            Nestled in the heart of the countryside, Campton is a small town with a big heart.
+            Whether you're here for the scenic views, local hospitality, or just passing through —
             there's always something to enjoy in Campton.
         </p>
         <p>
-            From hiking trails and historic buildings to cozy diners and friendly faces, 
+            From hiking trails and historic buildings to cozy diners and friendly faces,
             Campton invites you to slow down and soak in the charm of small-town America.
         </p>
         <img src="https://upload.wikimedia.org/wikipedia/commons/8/8e/Hood_Camptown_Scene.jpg" alt="Hood Campton" />
@@ -1005,7 +1005,7 @@ cat << 'EOF' > ./public/indexx.html
   <canvas id="stars"></canvas>
   <div class="content">
     <h1>something special</h1>
-  
+
     <h1><a href=http://127.0.0.1:8088/>HOME</a></h1>
     <h3>
         <a href="/null">another 403</a>
@@ -1396,12 +1396,12 @@ cat << 'EOF' > ./www/deletz.html
     <div class="container">
         <h1>Delete a File</h1>
         <form id="deleteForm">
-            <input 
-                type="text" 
-                id="filename" 
-                name="filename" 
-                placeholder="Enter filename to delete" 
-                required 
+            <input
+                type="text"
+                id="filename"
+                name="filename"
+                placeholder="Enter filename to delete"
+                required
                 autocomplete="off"
             />
             <button type="submit">Delete File</button>
