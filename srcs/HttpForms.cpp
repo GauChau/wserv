@@ -17,10 +17,13 @@ HttpForms::HttpForms(int socket,int code): _socket(socket)
 	this->_connection = "close";
 	this->_contentlen = 0;
 
+	if(this->_code_forms.find(code) == this->_code_forms.end())
+		code = 404;
+
 	std::stringstream res(this->_response);
 	res << this->_code_forms.find(code)->second;
 	res << "Content-Type: "<< this->_content_type<<"\r\n";
-	res << "Content-Length" << this-> _contentlen<<"\r\n";
+	res << "Content-Length: " << this-> _contentlen<<"\r\n";
 	res	<< "Connection: " << this->_connection<<"\r\n";
 	res << "\r\n";
 	res << this->_body;
@@ -40,12 +43,15 @@ HttpForms::HttpForms(int socket,int code, std::string ctype, std::string body): 
 	this->_body = body;
 	this->_content_type = ctype;
 	this->_connection = "close";
-	this->_contentlen = this->_content_type.size();
+	this->_contentlen = this->_body.size();
+
+	if(this->_code_forms.find(code) == this->_code_forms.end())
+		code = 404;
 
 	std::stringstream res;
 	res << this->_code_forms.find(code)->second;
 	res << "Content-Type: "<< this->_content_type<<"\r\n";
-	res << "Content-Length" << this-> _contentlen<<"\r\n";
+	res << "Content-Length: " << this-> _contentlen<<"\r\n";
 	res	<< "Connection: " << this->_connection<<"\r\n";
 	res << "\r\n";
 	res << this->_body;
@@ -63,16 +69,18 @@ HttpForms::HttpForms(int socket,int code, std::string ctype, std::string body, s
 	this->_body = body;
 	this->_content_type = ctype;
 	this->_connection = "close";
-	this->_contentlen = this->_content_type.size();
+	this->_contentlen = this->_body.size();
+
+	if(this->_code_forms.find(code) == this->_code_forms.end())
+		code = 404;
 
 	std::stringstream res;
 	res << this->_code_forms.find(code)->second;
 	res << "Content-Type: "<< this->_content_type<<"\r\n";
-	res << "Content-Length" << this-> _contentlen<<"\r\n";
+	res << "Content-Length: " << this-> _contentlen<<"\r\n";
 	res	<< "Connection: " << this->_connection<<"\r\n";
 	res << "\r\n";
 	res << this->_body;
-	// std::cerr<<"\n\nINSIDE HTTP: "<<res.str()<<std::endl;
 	this->_response = res.str();
 	req = this->_response;
 }
@@ -84,11 +92,6 @@ void HttpForms::_sendclose(void)
 void HttpForms::_send(void)
 {
 	send(this->_socket, this->_response.data(), this->_response.size(),0);
-}
-
-HttpForms::HttpForms(const HttpForms &copy)
-{
-	(void) copy;
 }
 
 

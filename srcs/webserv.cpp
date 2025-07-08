@@ -1,5 +1,6 @@
 #include "webserv.hpp"
 #include "request.hpp"
+#include "HttpForms.hpp"
 
 Webserv::Webserv(void)
 {

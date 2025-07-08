@@ -1,4 +1,5 @@
 #include "request.hpp"
+#include "HttpForms.hpp"
 
 static std::string readFile(const std::string& file_path)
 {
@@ -75,22 +76,17 @@ Request::~Request()
 Request::Request(char *raw, const ServerConfig &servr, int socket, ssize_t bytes_received)
     : _server(servr), _socket(socket), _bytes_rec(bytes_received)
 {
-	std::cerr<<"bytes rec 1:"<<bytes_received<<std::endl;
     this->r_header.append(raw, this->_bytes_rec);
     std::istringstream iss(raw);
-    std::string buffer, header, sum;
-	header.append(raw, bytes_received);
+    std::string buffer;
     iss >> this->r_method >> this->r_location >> this->r_version;
 
 	std::string::size_type pos = this->r_header.find("\r\n\r\n",0);
 	if (pos != std::string::npos)
 	{
-		header.clear();
 		this->_bytes_rec -= pos + 4;
 		std::string body;
 		body.append(raw+pos+4, this->_bytes_rec);
-		header.append(raw, pos);
-		sum = header + body;
 		this->r_body = body;
 	}
 
@@ -107,6 +103,7 @@ Request::Request(char *raw, const ServerConfig &servr, int socket, ssize_t bytes
     }
     check_allowed_methods(servr);
 }
+
 
 
 
@@ -139,7 +136,6 @@ void Request::check_allowed_methods(const ServerConfig &server)
 // ________________EXECUTE METHOD____________________
 void Request::execute(std::string s = "null")
 {
-	// std::cout<<"\033[48;5;236mREQUEST = '" << this->r_location<<"' ";
 	if(s == "405") // 405 unallowed method
 	{
 		const std::string&
@@ -151,33 +147,14 @@ void Request::execute(std::string s = "null")
 		bodi += "<h2>" + this->_loc.root + " only handles:</h2>";
 		for (size_t i = 0; i < this->_loc.allowed_methods.size(); ++i)
 			bodi += "<h2> - " + this->_loc.allowed_methods[i] + " Method</h2>";
-		std::stringstream response;
-		response << "HTTP/1.1 405 Method Not Alloweds\r\n";
-		response << "Content-Type: " << contentType << "\r\n";
-		response << "Content-Length: " << bodi.size() << "\r\n";
-		response << "Connection: close\r\n";
-		response << "\r\n"; // End of headers
-		response << bodi;
-		response << "<p>"<<this->_loc.index + " only handles: </p>";
-		for(unsigned long i = 0; i < this->_loc.allowed_methods.size(); i++)
-			response << "<p> - " + this->_loc.allowed_methods[i] + " Method</p>";
 
-		this->_ReqContent = ( response.str());
-	}/*else if (s == "404") // 404 not found
-	{
-		// render custom 404 page
-		const std::string&
-				body = readFile("./www/errors/404.html"),
-				contentType = "text/html";
-		std::stringstream response;
-		response << "HTTP/1.1 404 Not Found\r\n";
-		response << "Content-Type: " << contentType << "\r\n";
-		response << "Content-Length: " << body.size() << "\r\n";
-		response << "Connection: close\r\n";
-		response << "\r\n"; // End of headers
-		response << body;
-		this->_ReqContent = ( response.str());
-	}*/else
+		bodi += "<p>" + this->_loc.index + " only handles: </p>";
+
+		for(unsigned long i = 0; i < this->_loc.allowed_methods.size(); i++)
+			bodi += "<p> - " + this->_loc.allowed_methods[i] + " Method</p>";
+
+		HttpForms exec405(this->_socket,405,contentType,bodi,this->_ReqContent);
+	}else
 	{
 		if(!this->authorized)
 			return ;
@@ -193,7 +170,6 @@ void Request::execute(std::string s = "null")
 //PROBLEM: ECRIT UN \n DE TROP A LA FIN DU FICHIER
 void	Request::writeData()
 {
-
 	bool parsestate = false;
 	if (this->r_boundary =="void")
 	{
@@ -238,7 +214,7 @@ void	Request::writeData()
 			{
 
 				std::string& filename = this->file.name;
-				const std::string& content = buf+'\n';
+				const std::string& content = buf;
 				std::ofstream outFile(filename.c_str(),std::ios::app | std::ios::binary);  // Creates the file if it doesn't exist
 				if (!outFile)
 					throw std::ofstream::failure("bFailed to open file");
@@ -272,11 +248,8 @@ void Request::Post()
 	{
 		content_length = atol(this->http_params["Content-Length"].c_str());
 		if (content_length > 10 * 1024 * 1024) { // 10 MB limit
-			std::string res =
-				"HTTP/1.1 413 Payload Too Large\r\n"
-				"Content-Length: 0\r\n\r\n";
-			send(this->_socket, res.c_str(), res.size(), 0);
-			close(this->_socket);
+			HttpForms toolarge(this->_socket,413);
+			toolarge._sendclose();
 			return;
 		}
 	}
@@ -294,17 +267,10 @@ void Request::Post()
 			if (errno == EINTR || errno == EAGAIN || errno == EWOULDBLOCK)
 				continue; // retry the recv
 			else {
-				std::cerr << "\033[31m [x] post fatal recv err socket: " << this->_socket << " (" << strerror(errno) << ")\033[0m\n";
-
-				std::string response =
-					"HTTP/1.1 500 Internal Server Error\r\n"
-					"Content-Type: text/plain\r\n"
-					"Content-Length: 30\r\n"
-					"\r\n"
-					"Failed to receive POST data.\n";
-
-				send(this->_socket, response.c_str(), response.size(), 0);
-				close(this->_socket);
+				std::cerr << "\033[31m [x] post fatal recv err socket: "
+						  << this->_socket << " (" << strerror(errno) << ")\033[0m\n";
+				HttpForms ServError(this->_socket, 500,"text/plain","Failed to receive POST data.\r\n");
+				ServError._sendclose();
 				return;
 			}
 		}
@@ -315,12 +281,8 @@ void Request::Post()
 	try
 	{
 		this->writeData();
-		std::string res =
-			"HTTP/1.1 200 OK\r\n"
-			"Content-Length: 0\r\n"
-			"Connection: close\r\n"
-			"\r\n";
-		send(this->_socket, res.c_str(), res.size(), 0);
+		HttpForms ok(this->_socket, 200);
+		ok._send();
 
 		std::cout << "\033[32m[✓] POST request handled successfully!\033[0m" << std::endl;
 	}
@@ -464,14 +426,7 @@ void Request::Get()
 		if (pos != std::string::npos) {
 			body.replace(pos, std::string("<!--CONTENT-->").length(), listing.str());
 		}
-		std::stringstream response;
-		response << "HTTP/1.1 200 Ok\r\n";
-		response << "Content-Type: text/html\r\n";
-		response << "Content-Length: " << body.size() << "\r\n";
-		response << "Connection: close\r\n";
-		response << "\r\n";
-		response << body;
-		this->_ReqContent = response.str();
+		HttpForms notfound(this->_socket, 200,"text/html", body,this->_ReqContent);
 	}
 	// 404 no
 	else if (file_path == "[404]")
@@ -491,14 +446,7 @@ void Request::Get()
 		const std::string&
 				body = readFile(path_404),
 				contentType = "text/html";
-		std::stringstream response;
-		response << "HTTP/1.1 404 Not Found\r\n";
-		response << "Content-Type: " << contentType << "\r\n";
-		response << "Content-Length: " << body.size() << "\r\n";
-		response << "Connection: close\r\n";
-		response << "\r\n"; // End of headers
-		response << body;
-		this->_ReqContent = ( response.str());
+		HttpForms notfound(this->_socket, 404,contentType, body,this->_ReqContent);
 	}
 	// 403 forbidden
 	else if (file_path == "[403]")
@@ -518,14 +466,7 @@ void Request::Get()
 		const std::string&
 				body = readFile(path_403),
 				contentType = "text/html";
-		std::stringstream response;
-		response << "HTTP/1.1 403 Forbidden\r\n";
-		response << "Content-Type: " << contentType << "\r\n";
-		response << "Content-Length: " << body.size() << "\r\n";
-		response << "Connection: close\r\n";
-		response << "\r\n"; // End of headers
-		response << body;
-		this->_ReqContent = ( response.str());
+		HttpForms forbid(this->_socket, 403, contentType, body,this->_ReqContent);
 	}
 	else if (file_path == "[REDIRECTION]")
 	{
@@ -540,16 +481,7 @@ void Request::Get()
 			const std::string&
 				body = readFile(file_path),
 				contentType = "text/html";
-
-			std::stringstream response;
-			response << "HTTP/1.1 200 OK\r\n";
-			response << "Content-Type: " << contentType << "\r\n";
-			response << "Content-Length: " << body.size() << "\r\n";
-			response << "Connection: close\r\n";
-			response << "\r\n"; // End of headers
-
-			response << body;
-			this->_ReqContent = ( response.str());
+			HttpForms ok(this->_socket, 200, contentType, body,this->_ReqContent);
 		}else
 		{
 			std::string script_path;
@@ -598,20 +530,14 @@ void Request::Get()
 						while (contentType[0] == ' ') contentType.erase(0, 1); // trim spaces
 					}
 				}
-			}else
+			}
+			else
 				body = cgi_output; // no headers? treat all as body
-			std::stringstream response;
-			response << "HTTP/1.1 200 OK\r\n";
-			response << "Content-Type: " << contentType << "\r\n";
-			response << "Content-Length: " << body.size() << "\r\n";
-			response << "Connection: close\r\n";
-			response << "\r\n";
-			response << body;
-			std::cout << response.str() << std::endl;
-			this->_ReqContent = response.str();
+
+			HttpForms ok(this->_socket, 200, contentType, body,this->_ReqContent);
+			std::cout << this->_ReqContent << std::endl;
 		}
 	}
-	// std::cout << "\033[1;48;5;236m"<< this->_ReqContent << "\033[0m"<< std::endl;
 }
 
 
@@ -633,12 +559,9 @@ void Request::Delete()
 				+ trim(this->http_params["X-Filename"]);
 		if(stat(full_path.c_str(), &buffer) != 0)
 		{
-			std::string response =
-				"HTTP/1.1 404 Not Found\r\n"
-				"Content-Length: 0\r\n"
-				"Connection: close\r\n\r\n";
 			std::cout << "\033[31m[not found]: " << full_path << "\033[0m"<< std::endl;
-			send(this->_socket, response.c_str(), response.size(), 0);
+			HttpForms notfound(this->_socket, 404);
+			notfound._send();
 			return;
 		}else{
 			std::cout << "\033[32m[successfully found]: " << full_path << "\033[0m"<< std::endl;
@@ -646,46 +569,23 @@ void Request::Delete()
 		}
 	}else
 	{
-		std::string response =
-            "HTTP/1.1 400 Bad Request\r\n"
-            "Content-Length: 0\r\n"
-            "Connection: close\r\n\r\n";
-        send(this->_socket, response.c_str(), response.size(), 0);
-    	close(this->_socket);
+		HttpForms Badreq(this->_socket, 400);
+		Badreq._sendclose();
 		return;
 	}
-    // e.g., "/uploads/file.txt" or "/index.html"
-	// std::string root = this->_loc.root;   // e.g. "/var/www/ur_site"
-    // std::string path = this->_loc.upload_store;  // e.g. "/uploads/myfle.txt"
-
-    // // force root to nd w a slash
-	// if (!root.empty() && root[root.size() - 1] != '/')
-    //    root += "/";
-
-    // // rmv leading slash path to avoid dbl slash
-    // if (!path.empty() && path[0] == '/')
-    //     path.erase(0, 1);
-
-    // std::string full_path = root + path; // "/var/www/uploads/myfile.txt"
 
     // Try to delete the file
     if (std::remove(f_path.c_str()) == 0)
     {
-        std::string response =
-            "HTTP/1.1 200 OK\r\n"
-            "Content-Length: 0\r\n"
-            "Connection: close\r\n\r\n";
-        send(this->_socket, response.c_str(), response.size(), 0);
+		HttpForms ok(this->_socket,200);
+		ok._send();
 		return;
     }
     else
     {
         // file deletion failed, send 404 or 403
-        std::string response =
-            "HTTP/1.1 404 Not Found\r\n"
-            "Content-Length: 0\r\n"
-            "Connection: close\r\n\r\n";
-        send(this->_socket, response.c_str(), response.size(), 0);
+		HttpForms notfound(this->_socket,404);
+		notfound._send();
     }
     close(this->_socket);
 }

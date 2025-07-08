@@ -33,7 +33,6 @@ class HttpForms
 		HttpForms(int socket,int code);
 		HttpForms(int socket,int code, std::string ctype, std::string body);
 		HttpForms(int socket,int code, std::string ctype, std::string body, std::string &res);
-		HttpForms(const HttpForms &copy);
 
 		// Destructor
 		~HttpForms();
