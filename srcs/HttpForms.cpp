@@ -20,15 +20,16 @@ HttpForms::HttpForms(int socket,int code): _socket(socket)
 	if(this->_code_forms.find(code) == this->_code_forms.end())
 		code = 404;
 
-	std::stringstream res(this->_response);
+	std::stringstream res;
 	res << this->_code_forms.find(code)->second;
 	res << "Content-Type: "<< this->_content_type<<"\r\n";
 	res << "Content-Length: " << this-> _contentlen<<"\r\n";
 	res	<< "Connection: " << this->_connection<<"\r\n";
 	res << "\r\n";
-	res << this->_body;
-
-
+	// res << this->_body;
+	this->_response = res.str();
+	// std::cerr<<"INFORM this->res:\n"<<this->_response<<std::endl;
+	// std::cerr<<"INFORM res.str():\n"<<res.str()<<std::endl;
 
 }
 

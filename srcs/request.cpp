@@ -214,7 +214,7 @@ void	Request::writeData()
 			{
 
 				std::string& filename = this->file.name;
-				const std::string& content = buf;
+				const std::string& content = buf+'\n';
 				std::ofstream outFile(filename.c_str(),std::ios::app | std::ios::binary);  // Creates the file if it doesn't exist
 				if (!outFile)
 					throw std::ofstream::failure("bFailed to open file");
@@ -283,7 +283,6 @@ void Request::Post()
 		this->writeData();
 		HttpForms ok(this->_socket, 200);
 		ok._send();
-
 		std::cout << "\033[32m[✓] POST request handled successfully!\033[0m" << std::endl;
 	}
 	catch(const std::ofstream::failure& e)
@@ -559,12 +558,12 @@ void Request::Delete()
 				+ trim(this->http_params["X-Filename"]);
 		if(stat(full_path.c_str(), &buffer) != 0)
 		{
-			std::cout << "\033[31m[not found]: " << full_path << "\033[0m"<< std::endl;
+			std::cerr << "\033[31m[not found]: " << full_path << "\033[0m"<< std::endl;
 			HttpForms notfound(this->_socket, 404);
 			notfound._send();
 			return;
 		}else{
-			std::cout << "\033[32m[successfully found]: " << full_path << "\033[0m"<< std::endl;
+			std::cerr << "\033[32m[successfully found]: " << full_path << "\033[0m"<< std::endl;
 			f_path = (full_path);
 		}
 	}else
@@ -577,7 +576,7 @@ void Request::Delete()
     // Try to delete the file
     if (std::remove(f_path.c_str()) == 0)
     {
-		HttpForms ok(this->_socket,200);
+		HttpForms ok(this->_socket,200, "text/plain","success");
 		ok._send();
 		return;
     }
