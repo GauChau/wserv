@@ -132,47 +132,61 @@ void Webserv::init(void)
 // }
 
 
-static bool handle_client(int client_socket, const ServerConfig &serv)
+static bool handle_client(int client_socket,  ServerConfig &serv)
 {
     char buffer[2048];
     ssize_t bytes_received = recv(client_socket, buffer, sizeof(buffer), 0);
+    // std::cerr<<"BUFFER:\n"<<buffer<<"\n|ENDOFBUFFER"<<std::endl;
+
     if (bytes_received < 0)
     {
         if (errno == EAGAIN || errno == EWOULDBLOCK)
         {
+            std::cerr<<"HANDLE clientsocket pollin: "<<client_socket<<"\n";
             // no data now, try again (non-blocking socket)
             return false; // don't close socket, let poll try again
         }
         std::cerr << "\033[31m[x] recv() error on client " << client_socket
         << ": " << strerror(errno) << "\033[0m\n";
-        close(client_socket);
+        // close(client_socket);
         return true; // done with this socket (error, cleanup)
     }
     else if (bytes_received == 0)
     {
-        std::cerr<<"RECV:\n" <<buffer<<std::endl;
         // Client closed connection
         std::cerr << "\033[33m[~] Client disconnected: " << client_socket << "\033[0m\n";
-        close(client_socket);
+        // close(client_socket);
         return true;
     }
-    // buffer[bytes_received] = '\0';
-
 
     // log  received HTTP request
     Request R(buffer, serv, client_socket, bytes_received);
+
     std::string response = R._get_ReqContent();
     ssize_t sent = send(client_socket, response.c_str(), response.size(), 0);
     if (sent < 0)
     {
         std::cerr << "\033[31m[x] send() failed: " << strerror(errno) << "\033[0m\n";
     }
-    close(client_socket);
-    return true;
+    if (!R.keepalive)
+    {
+        // close(client_socket);
+        return true;
+    }
+    return false;
 }
 
 
-
+template <typename K, typename V>
+bool contientValeur(const std::map<K, V>& maMap, const V& valeurRecherchee) {
+    typename std::map<K, V>::const_iterator it;
+    for (it = maMap.begin(); it != maMap.end(); ++it) {
+        if (it->second == valeurRecherchee) {
+            return true;
+        }
+    }
+    return false;
+}
 
 
 void Webserv::start(void)
@@ -219,7 +233,10 @@ void Webserv::start(void)
                 continue;
 
             // accept new connections on serv socket
-            if (server_fds.count(pfd.fd))
+            ServerConfig* servb = fd_to_server[pfd.fd];
+            bool lol = false;
+
+            if (server_fds.count(pfd.fd))// && !contientValeur(servb->user_socket, pfd.fd))
             {
                 ServerConfig* serv = fd_to_server[pfd.fd];
                 if (!serv)
@@ -227,16 +244,16 @@ void Webserv::start(void)
                     std::cerr << "Error: no ServerConfig for fd " << pfd.fd << std::endl;
                     continue;
                 }
-
                 int client_fd = accept(pfd.fd,
-                                       (struct sockaddr*)&(serv->client_addr),
-                                       &serv->client_addr_len);
+                    (struct sockaddr*)&(serv->client_addr),
+                    &serv->client_addr_len);
 
-                if (client_fd < 0)
+                    if (client_fd < 0)
                     continue;
+                std::cerr<<"create socket n:"<<client_fd<<std::endl;
 
                 // socket timeout (optional, useful)
-                struct timeval timeout = {15, 0}; // 15 seconds
+                struct timeval timeout = {5, 0}; // 15 seconds
                 setsockopt(client_fd, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout));
 
                 // make non-blocking
@@ -249,8 +266,8 @@ void Webserv::start(void)
                 client_pfd.fd = client_fd;
                 client_pfd.events = POLLIN;
                 poll_fds.push_back(client_pfd);
-
                 client_fd_to_server[client_fd] = serv;
+
             }
             else
             {
@@ -261,7 +278,11 @@ void Webserv::start(void)
 
                 bool done = handle_client(pfd.fd, *serv);
                 if (done)
+                {
+                    std::cerr<<"delete socket n:"<<pfd.fd<<std::endl;
+                    close(pfd.fd);
                     fds_to_remove.push_back(pfd.fd);
+                }
             }
         }
 

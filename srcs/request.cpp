@@ -74,7 +74,7 @@ Request::~Request()
 { }
 
 Request::Request(char *raw, const ServerConfig &servr, int socket, ssize_t bytes_received)
-    : _server(servr), _socket(socket), _bytes_rec(bytes_received)
+    : _socket(socket),_server(servr),  _bytes_rec(bytes_received)
 {
     this->r_header.append(raw, this->_bytes_rec);
     std::istringstream iss(raw);
@@ -101,6 +101,20 @@ Request::Request(char *raw, const ServerConfig &servr, int socket, ssize_t bytes
             this->http_params.insert(std::make_pair(key, value));
         }
     }
+	if(this->http_params.find("Connection")!=this->http_params.end())
+	{
+		std::string connec;
+		bool keepalive;
+		connec = this->http_params["Connection"];
+		// std::cerr<<"connec:|"<<connec<<"|\n"<<std::endl;
+		if (connec.find("keep-alive") !=std::string::npos)
+		{
+			// std::cerr<<"keepalivefound\n";
+			this->keepalive = true;
+		}
+		else
+			this->keepalive = false;
+	}
     check_allowed_methods(servr);
 }
 
@@ -153,7 +167,7 @@ void Request::execute(std::string s = "null")
 		for(unsigned long i = 0; i < this->_loc.allowed_methods.size(); i++)
 			bodi += "<p> - " + this->_loc.allowed_methods[i] + " Method</p>";
 
-		HttpForms exec405(this->_socket,405,contentType,bodi,this->_ReqContent);
+		HttpForms exec405(this->_socket,405,this->keepalive,contentType,bodi,this->_ReqContent);
 	}else
 	{
 		if(!this->authorized)
@@ -248,8 +262,8 @@ void Request::Post()
 	{
 		content_length = atol(this->http_params["Content-Length"].c_str());
 		if (content_length > 10 * 1024 * 1024) { // 10 MB limit
-			HttpForms toolarge(this->_socket,413);
-			toolarge._sendclose();
+			HttpForms toolarge(this->_socket,413,this->keepalive);
+			toolarge._send();
 			return;
 		}
 	}
@@ -269,8 +283,8 @@ void Request::Post()
 			else {
 				std::cerr << "\033[31m [x] post fatal recv err socket: "
 						  << this->_socket << " (" << strerror(errno) << ")\033[0m\n";
-				HttpForms ServError(this->_socket, 500,"text/plain","Failed to receive POST data.\r\n");
-				ServError._sendclose();
+				HttpForms ServError(this->_socket, 500,this->keepalive,"text/plain","Failed to receive POST data.\r\n");
+				ServError._send();
 				return;
 			}
 		}
@@ -281,7 +295,7 @@ void Request::Post()
 	try
 	{
 		this->writeData();
-		HttpForms ok(this->_socket, 200);
+		HttpForms ok(this->_socket, 200,this->keepalive);
 		ok._send();
 		std::cout << "\033[32m[✓] POST request handled successfully!\033[0m" << std::endl;
 	}
@@ -425,7 +439,7 @@ void Request::Get()
 		if (pos != std::string::npos) {
 			body.replace(pos, std::string("<!--CONTENT-->").length(), listing.str());
 		}
-		HttpForms notfound(this->_socket, 200,"text/html", body,this->_ReqContent);
+		HttpForms notfound(this->_socket,this->keepalive, 200,"text/html", body,this->_ReqContent);
 	}
 	// 404 no
 	else if (file_path == "[404]")
@@ -445,7 +459,8 @@ void Request::Get()
 		const std::string&
 				body = readFile(path_404),
 				contentType = "text/html";
-		HttpForms notfound(this->_socket, 404,contentType, body,this->_ReqContent);
+		HttpForms notfound(this->_socket, 404,this->keepalive,contentType, body,this->_ReqContent);
+		notfound._send();
 	}
 	// 403 forbidden
 	else if (file_path == "[403]")
@@ -465,7 +480,8 @@ void Request::Get()
 		const std::string&
 				body = readFile(path_403),
 				contentType = "text/html";
-		HttpForms forbid(this->_socket, 403, contentType, body,this->_ReqContent);
+		HttpForms forbid(this->_socket, 403,this->keepalive, contentType, body,this->_ReqContent);
+		forbid._send();
 	}
 	else if (file_path == "[REDIRECTION]")
 	{
@@ -480,7 +496,7 @@ void Request::Get()
 			const std::string&
 				body = readFile(file_path),
 				contentType = "text/html";
-			HttpForms ok(this->_socket, 200, contentType, body,this->_ReqContent);
+			HttpForms ok(this->_socket, 200,this->keepalive, contentType, body,this->_ReqContent);
 		}else
 		{
 			std::string script_path;
@@ -533,7 +549,8 @@ void Request::Get()
 			else
 				body = cgi_output; // no headers? treat all as body
 
-			HttpForms ok(this->_socket, 200, contentType, body,this->_ReqContent);
+			HttpForms ok(this->_socket, 200,this->keepalive, contentType, body,this->_ReqContent);
+			ok._send();
 			std::cout << this->_ReqContent << std::endl;
 		}
 	}
@@ -559,7 +576,7 @@ void Request::Delete()
 		if(stat(full_path.c_str(), &buffer) != 0)
 		{
 			std::cerr << "\033[31m[not found]: " << full_path << "\033[0m"<< std::endl;
-			HttpForms notfound(this->_socket, 404);
+			HttpForms notfound(this->_socket, 404,this->keepalive);
 			notfound._send();
 			return;
 		}else{
@@ -568,25 +585,25 @@ void Request::Delete()
 		}
 	}else
 	{
-		HttpForms Badreq(this->_socket, 400);
-		Badreq._sendclose();
+		HttpForms Badreq(this->_socket, 400,this->keepalive);
+		Badreq._send();
 		return;
 	}
 
     // Try to delete the file
     if (std::remove(f_path.c_str()) == 0)
     {
-		HttpForms ok(this->_socket,200, "text/plain","success");
+		HttpForms ok(this->_socket,200,this->keepalive, "text/plain","success");
 		ok._send();
 		return;
     }
     else
     {
         // file deletion failed, send 404 or 403
-		HttpForms notfound(this->_socket,404);
+		HttpForms notfound(this->_socket,404,this->keepalive);
 		notfound._send();
     }
-    close(this->_socket);
+    // close(this->_socket);
 }
 
 

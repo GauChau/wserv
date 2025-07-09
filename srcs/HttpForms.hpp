@@ -30,9 +30,9 @@ class HttpForms
 {
 	public:
 		// Constructors
-		HttpForms(int socket,int code);
-		HttpForms(int socket,int code, std::string ctype, std::string body);
-		HttpForms(int socket,int code, std::string ctype, std::string body, std::string &res);
+		HttpForms(int socket,int code, bool keepalive);
+		HttpForms(int socket,int code, bool keepalive, std::string ctype, std::string body);
+		HttpForms(int socket,int code, bool keepalive, std::string ctype, std::string body, std::string &res);
 
 		// Destructor
 		~HttpForms();

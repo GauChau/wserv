@@ -86,6 +86,7 @@ struct ServerConfig
         locations;
     std::vector<std::pair<unsigned int, std::string> >
         error_pages;
+    std::map<std::string,int> user_socket;
 };
 
 class Webserv
