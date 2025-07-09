@@ -40,6 +40,7 @@ class HttpForms
 		//method
 		void _sendclose(void);
 		void _send(void);
+		void _setcodes();
 
 		// Operators
 		HttpForms & operator=(const HttpForms &assign);
