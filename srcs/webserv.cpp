@@ -1,6 +1,7 @@
 #include "webserv.hpp"
 #include "request.hpp"
 #include "HttpForms.hpp"
+#include "utils.hpp"
 
 Webserv::Webserv(void)
 {
@@ -101,94 +102,6 @@ void Webserv::init(void)
 
 
 
-
-
-
-
-
-
-
-// handle a client request (send a basic HTTP response)
-// static bool handle_client(int client_socket, const ServerConfig &serv)
-// {
-//     char buffer[2048];
-//     // std::cerr << " \033[31m Error " << client_socket<<buffer<<sizeof(buffer-1) << "\033[0m" << std::endl;
-//     ssize_t bytes_received = recv(client_socket, buffer, sizeof(buffer) - 1, 0);
-//     if (bytes_received < 0)
-//     {
-//         std::cerr << " \033[31m Error receiving data from client!  : " << client_socket <<" errno: "<<errno<< "\033[0m" << std::endl;
-//         close(client_socket);
-//         return (false);
-//     }
-//     buffer[bytes_received] = '\0'; // null-terminate data
-
-
-//     Request R = Request(buffer, serv, client_socket);
-//     std::string response_ = R._get_ReqContent();
-//     send(client_socket, response_.c_str(), (response_.size()), 0);
-//     close(client_socket); // Close client socket after sending the response
-
-//     return(true);
-// }
-
-
-static bool handle_client(int client_socket,  ServerConfig &serv)
-{
-    char buffer[2048];
-    ssize_t bytes_received = recv(client_socket, buffer, sizeof(buffer), 0);
-    // std::cerr<<"BUFFER:\n"<<buffer<<"\n|ENDOFBUFFER"<<std::endl;
-
-    if (bytes_received < 0)
-    {
-        if (errno == EAGAIN || errno == EWOULDBLOCK)
-        {
-            std::cerr<<"HANDLE clientsocket pollin: "<<client_socket<<"\n";
-            // no data now, try again (non-blocking socket)
-            return false; // don't close socket, let poll try again
-        }
-        std::cerr << "\033[31m[x] recv() error on client " << client_socket
-        << ": " << strerror(errno) << "\033[0m\n";
-        // close(client_socket);
-        return true; // done with this socket (error, cleanup)
-    }
-    else if (bytes_received == 0)
-    {
-        // Client closed connection
-        std::cerr << "\033[33m[~] Client disconnected: " << client_socket << "\033[0m\n";
-        // close(client_socket);
-        return true;
-    }
-
-    // log  received HTTP request
-    Request R(buffer, serv, client_socket, bytes_received);
-
-    std::string response = R._get_ReqContent();
-    ssize_t sent = send(client_socket, response.c_str(), response.size(), 0);
-    if (sent < 0)
-    {
-        std::cerr << "\033[31m[x] send() failed: " << strerror(errno) << "\033[0m\n";
-    }
-    if (!R.keepalive)
-    {
-        // close(client_socket);
-        return true;
-    }
-    return false;
-}
-
-
-template <typename K, typename V>
-bool contientValeur(const std::map<K, V>& maMap, const V& valeurRecherchee) {
-    typename std::map<K, V>::const_iterator it;
-    for (it = maMap.begin(); it != maMap.end(); ++it) {
-        if (it->second == valeurRecherchee) {
-            return true;
-        }
-    }
-    return false;
-}
-
-
 void Webserv::start(void)
 {
     std::vector<pollfd> poll_fds;
@@ -206,22 +119,25 @@ void Webserv::start(void)
         pfd.fd = server_fd;
         pfd.events = POLLIN;
         poll_fds.push_back(pfd);
-
+        pfd.revents = 0;
         fd_to_server[server_fd] = &this->servers[i];
         server_fds.insert(server_fd); // track listening sockets
     }
 
     std::cout << "\033[92m ===== STARTED " << poll_fds.size() << " SERVERZ ===== \033[0m" << std::endl;
 
-    // poll() loop on all servers
     while (true)
     {
         int ret = poll(poll_fds.data(), poll_fds.size(), -1);
 
-        if (ret == -1)
+        if (ret < 0)
         {
             perror("poll");
             break;
+        }
+         if (ret ==0)
+        {
+            continue;
         }
 
         fds_to_remove.clear();
@@ -232,11 +148,7 @@ void Webserv::start(void)
             if (!(pfd.revents & POLLIN))
                 continue;
 
-            // accept new connections on serv socket
-            ServerConfig* servb = fd_to_server[pfd.fd];
-            bool lol = false;
-
-            if (server_fds.count(pfd.fd))// && !contientValeur(servb->user_socket, pfd.fd))
+            if (server_fds.count(pfd.fd))
             {
                 ServerConfig* serv = fd_to_server[pfd.fd];
                 if (!serv)
@@ -244,6 +156,12 @@ void Webserv::start(void)
                     std::cerr << "Error: no ServerConfig for fd " << pfd.fd << std::endl;
                     continue;
                 }
+
+                // if(poll_fds.size() > 4 + 0)
+                // {
+                //     pfd.revents = 0;
+                //     continue ;
+                // }
                 int client_fd = accept(pfd.fd,
                     (struct sockaddr*)&(serv->client_addr),
                     &serv->client_addr_len);
@@ -253,7 +171,7 @@ void Webserv::start(void)
                 std::cerr<<"create socket n:"<<client_fd<<std::endl;
 
                 // socket timeout (optional, useful)
-                struct timeval timeout = {5, 0}; // 15 seconds
+                struct timeval timeout = {10, 0}; // 10 seconds
                 setsockopt(client_fd, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout));
 
                 // make non-blocking
@@ -265,13 +183,14 @@ void Webserv::start(void)
                 pollfd client_pfd;
                 client_pfd.fd = client_fd;
                 client_pfd.events = POLLIN;
+                client_pfd.revents = 0;
                 poll_fds.push_back(client_pfd);
                 client_fd_to_server[client_fd] = serv;
 
             }
+            // handle client req
             else
             {
-                // handle client req
                 ServerConfig* serv = client_fd_to_server[pfd.fd];
                 if (!serv)
                     continue;
@@ -291,8 +210,7 @@ void Webserv::start(void)
         {
             int fd = fds_to_remove[j];
 
-            if (server_fds.count(fd))
-                continue; // do not remove server sockets
+            if (server_fds.count(fd)) continue; // do not remove server sockets
 
             client_fd_to_server.erase(fd);
 

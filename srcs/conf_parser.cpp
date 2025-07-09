@@ -97,8 +97,9 @@ bool Webserv::parseConfigFile(const std::string& filename)
             size_t 
                 startPos = line.find('/'),
                 endPos = line.find('{');
-            //std::cout << "MON GROS PAFF " << line.substr(startPos, endPos - startPos - 1) << std::endl;
-            serv_loc.path = line.substr(startPos, endPos - startPos - 1);
+
+                serv_loc.path = line.substr(startPos, endPos - startPos - 1);
+            //  std::cerr<<"path1"<<serv_loc.path<<"\n";
         } else if (line == "}") 
         {
             if (!context.empty()) 
@@ -147,13 +148,18 @@ bool Webserv::parseConfigFile(const std::string& filename)
                         // ));
                     }
                 } 
-                // eaach route part
+                // eaach route/location part
                 else if (context.top() == "location")
                 {
                     if (key == "root") 
                         serv_loc.root = value;
                     else if (key == "autoindex") 
                         serv_loc.autoindex = (value == "on");
+                    else if (key == "return")
+                    {
+                        iss>>value;
+                        serv_loc.redirection = value;                        
+                    }
                     else if (key == "methods" || key == "allowed_methods"){
                         // serv_loc.allowed_methods.push_back(line.substr(0, line.size() - 1));
                         line = line.substr(0, line.size() - 1);  // removing last char (e.g., '\n')

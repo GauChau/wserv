@@ -249,6 +249,12 @@ cat << 'EOF' > ./www/index.html
             <a href="http://127.0.0.1:9091" target="_blank">campton:9091</a>
             <a href="http://127.0.0.1:4343" target="_blank">special</a>
         </div>
+        <div class="ports">
+            <h3>homies</h3>
+            <a href="https://google.com" target="_blank">GOOGLE</a>
+            <a href="https://facebook.com" target="_blank">FACEBOOK</a>
+            <a href="/call-redirect">our redirect to google</a>
+        </div>
     </div>
     <h5>all rights reserved.
         <a href="https://github.com/youradrien">le j</a>

@@ -25,11 +25,7 @@ HttpForms::HttpForms(int socket,int code, bool keepalive): _socket(socket)
 	res << "Content-Length: " << this-> _contentlen<<"\r\n";
 	res	<< "Connection: " << this->_connection<<"\r\n";
 	res << "\r\n";
-	// res << this->_body;
 	this->_response = res.str();
-	// std::cerr<<"INFORM this->res:\n"<<this->_response<<std::endl;
-	// std::cerr<<"INFORM res.str():\n"<<res.str()<<std::endl;
-
 }
 
 HttpForms::HttpForms(int socket,int code, bool keepalive, std::string ctype, std::string body): _socket(socket)

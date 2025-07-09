@@ -59,6 +59,7 @@ struct LocationConfig
         cgi_extension,
         cgi_path,
         index,
+        redirection,
         upload_store;
     std::vector<std::string>
         allowed_methods;
