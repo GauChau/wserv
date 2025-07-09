@@ -25,7 +25,6 @@ Webserv::~Webserv()
     }
 }
 
-
 void Webserv::init(void)
 {
     for(uint32_t i = 0; i < this->servers.size(); i ++)

@@ -96,8 +96,9 @@ void HttpForms::_setcodes(void)
 {
 	this->_code_forms.insert(std::make_pair(200, "HTTP/1.1 200 OK\r\n"));
 	this->_code_forms.insert(std::make_pair(403, "HTTP/1.1 403 Forbidden\r\n"));
+	this->_code_forms.insert(std::make_pair(400, "HTTP/1.1 400 Bad Request\r\n"));
 	this->_code_forms.insert(std::make_pair(404, "HTTP/1.1 404 Not Found\r\n"));
-	this->_code_forms.insert(std::make_pair(405, "HTTP/1.1 405 Method Not Alloweds\r\n"));
+	this->_code_forms.insert(std::make_pair(405, "HTTP/1.1 405 Method Not Allowed\r\n"));
 	this->_code_forms.insert(std::make_pair(413, "HTTP/1.1 413 Payload Too Large\r\n"));
 	this->_code_forms.insert(std::make_pair(500, "HTTP/1.1 500 Internal Server Error\r\n"));
 }

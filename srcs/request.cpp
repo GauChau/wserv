@@ -15,19 +15,28 @@ Request::Request(char *raw, const ServerConfig &servr, int socket, ssize_t bytes
     iss >> this->r_method >> this->r_location >> this->r_version;
 	std::string::size_type pos = this->r_header.find("\r\n\r\n",0);
 
+	// std::cerr<<"raw:\n"<<raw<<"\n";
+
 	if (pos != std::string::npos)
 	{
 		this->_bytes_rec -= pos + 4;
 		std::string body;
 		body.append(raw+pos+4, this->_bytes_rec);
 		this->r_body = body;
-	}
 
-    while (getline(iss, buffer)) {
+	}
+	std::istringstream iss3(this->r_header.substr(0,pos));
+    while (getline(iss3, buffer)) {
         if (buffer.size() > 1) {
             std::string key, value;
             std::istringstream iss2(buffer);
             getline(iss2, buffer, ':');
+			if(this->http_params.find(buffer)!= this->http_params.end())
+			{
+				// std::cerr<<"badreqon thisparan: "<<iss.tellg()<<" size:"<<iss.str().size()<<"\n";
+				HttpForms Badrequest(this->_socket, 400, 0, "","",this->_ReqContent);
+				return ;
+			}
             key = buffer;
             getline(iss2, buffer);
             value = buffer;
@@ -172,15 +181,18 @@ void	Request::writeData()
 void Request::Post()
 {
 	//EXTRACT BOUNDARY
-	std::string::size_type pos = this->http_params.find("Content-Type")->second.find("boundary=");
-    if (pos != std::string::npos)
-	{
-        this->r_boundary = this->http_params.find("Content-Type")->second.substr(pos+9);
-		this->r_boundary.resize(this->r_boundary.size()-1);
-		this->r_boundary = "--" + this->r_boundary;
-		if (*this->r_boundary.rbegin()==' ')
-			this->r_boundary.resize(this->r_boundary.size()-1);
 
+    if (this->http_params.find("Content-Type")!= this->http_params.end())
+	{
+		std::string::size_type pos = this->http_params.find("Content-Type")->second.find("boundary=");
+		if (pos != std::string::npos)
+		{
+			this->r_boundary = this->http_params.find("Content-Type")->second.substr(pos+9);
+			this->r_boundary.resize(this->r_boundary.size()-1);
+			this->r_boundary = "--" + this->r_boundary;
+			if (*this->r_boundary.rbegin()==' ')
+				this->r_boundary.resize(this->r_boundary.size()-1);
+		}
     }
 	else
 		this->r_boundary = "void";
