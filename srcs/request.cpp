@@ -14,8 +14,13 @@ Request::Request(char *raw, const ServerConfig &servr, int socket, ssize_t bytes
     std::string buffer;
     iss >> this->r_method >> this->r_location >> this->r_version;
 	std::string::size_type pos = this->r_header.find("\r\n\r\n",0);
-
-	// std::cerr<<"raw:\n"<<raw<<"\n";
+	// this->location_filename="";
+	// if(this->r_location.find("/") != this->r_location.rfind("/"))
+	// {
+	// 	this->location_filename = this->r_location.substr(this->r_location.find("/",1));
+	// 	this->r_location = this->r_location.substr(0, this->r_location.find("/",1));
+	// }
+	// // std::cerr<<"this->r_location:|"<<this->r_location<<"| this->locfilename: |"<<this->location_filename<<"|\n";
 
 	if (pos != std::string::npos)
 	{
@@ -56,35 +61,87 @@ Request::Request(char *raw, const ServerConfig &servr, int socket, ssize_t bytes
 }
 
 
+bool is_proper_prefix(const std::string& uri, const std::string& loc)
+{
+    if (uri.compare(0, loc.size(), loc) != 0)
+        return false;
+
+    if (uri.size() == loc.size())
+        return true;
+
+    if (uri[loc.size()] == '/')
+        return true;
+
+    return false;
+}
+
+bool match_location(const std::string& uri,const std::vector<LocationConfig> &locations, LocationConfig &_loc_target)
+{
+	bool found=false;
+    std::string best_match = "";
+	std::vector<LocationConfig>::const_iterator it_loc = locations.begin();
+    for(;it_loc != locations.end();it_loc++)
+	{
+        if (is_proper_prefix(uri, it_loc->path)) {
+            if (it_loc->path.length() > best_match.length()) {
+                best_match = it_loc->path;
+				_loc_target = *it_loc;
+				found=true;
+            }
+        }
+		// else if (best_match == "" && it_loc->path == "/")
+		// {
+        //     _loc_target = *it_loc;
+		// 	found=true;
+        // }
+    }
+	// if(found)
+	// {
+	// 	if(_loc_target.root.size()>0)
+	// 	{
+	// 		this->f
+	// 	}
+	// }
+    return found;
+}
 
 
 void Request::check_allowed_methods(const ServerConfig &server)
 {
 	std::vector<LocationConfig>::const_iterator it_loc = server.locations.begin();
-    for(;it_loc != server.locations.end();it_loc++)
-    {
-		if(it_loc->path == this->r_location)
+	LocationConfig location_target;
+	// std::cerr<<"matchloc: |"<<match_location(this->r_location, server.locations, location_target).path<<"|"<<std::endl;
+	bool lol = match_location(this->r_location, server.locations, location_target);
+	std::cerr<<"this->location_filename: "<<this->location_filename<<std::endl;
+	if(lol)
+	{
+		this->_loc = location_target;
+		std::vector<std::string>::const_iterator it_meth = it_loc->allowed_methods.begin();
+		for(;it_meth != it_loc->allowed_methods.end();it_meth++)
 		{
-			this->_loc = *it_loc;
-			std::vector<std::string>::const_iterator it_meth = it_loc->allowed_methods.begin();
-			for(;it_meth != it_loc->allowed_methods.end();it_meth++)
+			if(this->r_method == *it_meth)
 			{
-			    if(this->r_method == *it_meth)
-			    {
-			        this->authorized = true;
-                    this->execute(""); // <--- then execute it
-					return ;
-			    }
-			}
-			// 405
-			if(it_loc->allowed_methods.size() == 0)
+				if(location_target.root.size()>0)
+				{
+					this->location_filename = this->r_location;
+					this->location_filename.erase(0, this->_loc.path.size());
+					this->location_filename.insert(0, this->_loc.root);
+					std::cerr<<"this->location_filename: "<<this->location_filename<<std::endl;
+				}
+				this->authorized = true;
 				this->execute(""); // <--- then execute it
-			else
-				this->execute("405"); // <--- then execute it
-			return ;
+				return ;
+			}
 		}
-    }
-	// 404
+		// 405
+
+		if(it_loc->allowed_methods.size() == 0)
+			this->execute(""); // <--- then execute it
+		else
+			this->execute("405"); // <--- then execute it
+		return ;
+	}
+	// 404}
 	this->execute("404"); // <--- then execute it
 }
 // ________________EXECUTE METHOD____________________
@@ -157,6 +214,10 @@ void	Request::writeData()
 				getline(s,buf);
 				std::string safe_name = sanitize_filename(this->file.fname);
 				std::string full_path = this->_loc.upload_store + "/" + safe_name;
+				// if(this->location_filename.size()>0)
+				// {
+				// 	full_path=this->location_filename;
+				// }
 				this->file.name = full_path;
 				std::ofstream outFile(full_path.c_str(), std::ios::trunc | std::ios::binary);
 				if (!outFile)
@@ -265,6 +326,10 @@ void Request::Get()
 			((&(this->_loc.cgi_extension) != NULL && !this->_loc.cgi_extension.empty())) ))
         {
             file_path = full_path + "/" + this->_loc.index;
+			if(this->location_filename.size()> this->_loc.root.size())
+			{
+				file_path = this->location_filename;
+			}
         }
         else
         {

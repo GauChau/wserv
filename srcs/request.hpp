@@ -44,6 +44,7 @@ class Request
 		    std::string r_method, r_location,
                     r_version, r_boundary,
                     r_body, r_header,
+                    location_filename,
                     connec;
         LocationConfig _loc;
         ssize_t _bytes_rec, _contlen, ret;
