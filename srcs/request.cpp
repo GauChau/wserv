@@ -112,13 +112,14 @@ void Request::check_allowed_methods(const ServerConfig &server)
 	LocationConfig location_target;
 	// std::cerr<<"matchloc: |"<<match_location(this->r_location, server.locations, location_target).path<<"|"<<std::endl;
 	bool lol = match_location(this->r_location, server.locations, location_target);
-	std::cerr<<"this->location_filename: "<<this->location_filename<<std::endl;
+	// std::cerr<<"this->location_filename: "<<this->location_filename<<std::endl;
 	if(lol)
 	{
 		this->_loc = location_target;
-		std::vector<std::string>::const_iterator it_meth = it_loc->allowed_methods.begin();
+		std::vector<std::string>::const_iterator it_meth = location_target.allowed_methods.begin();
 		for(;it_meth != it_loc->allowed_methods.end();it_meth++)
 		{
+			// std::cerr<<"itmeth"<<*it_meth<<std::endl;
 			if(this->r_method == *it_meth)
 			{
 				if(location_target.root.size()>0)
@@ -126,7 +127,8 @@ void Request::check_allowed_methods(const ServerConfig &server)
 					this->location_filename = this->r_location;
 					this->location_filename.erase(0, this->_loc.path.size());
 					this->location_filename.insert(0, this->_loc.root);
-					std::cerr<<"this->location_filename: "<<this->location_filename<<std::endl;
+					// std::cerr<<"this->location_filename: "<<this->location_filename<<std::endl;
+					// std::cerr<<"this->r_location: "<<this->r_location<<std::endl;
 				}
 				this->authorized = true;
 				this->execute(""); // <--- then execute it
@@ -228,6 +230,8 @@ void	Request::writeData()
 
 				std::string& filename = this->file.name;
 				const std::string& content = buf+'\n';
+				if(filename.size()<1)
+					filename = this->_loc.upload_store + "/default.txt";
 				std::ofstream outFile(filename.c_str(),std::ios::app | std::ios::binary);  // Creates the file if it doesn't exist
 				if (!outFile)
 					throw std::ofstream::failure("bFailed to open file");
@@ -303,6 +307,7 @@ void Request::Post()
 	}
 	catch(const std::ofstream::failure& e)
 	{
+		HttpForms ok(this->_socket, 400,this->keepalive,"","",this->_ReqContent);
 		std::cerr << e.what() << '\n';
 	}
 }
@@ -497,9 +502,23 @@ void Request::Get()
 void Request::Delete()
 {
 	// make sure that delete only runs into the upload/ path
+	std::cerr<<"DELETE this->r_location: "<<this->r_location<<std::endl;
+	std::cerr<<"this->locfilename: "<<this->location_filename<<std::endl;
 	char buf[PATH_MAX];
 	std::string f_path;
-	if (this->http_params.find("X-Filename") != this->http_params.end() &&
+
+	if(this->location_filename.size()>this->_loc.root.size()&& getcwd(buf, sizeof(buf)))
+	{
+		std::cerr<<"1ST\n";
+		std::cerr<<"this->locfilename: "<<this->location_filename<<std::endl;
+		f_path = this->location_filename;
+		std::cerr<<"buf: "<<buf<<std::endl;
+		if(*this->location_filename.begin()=='.')
+			this->location_filename.erase(0,1);
+		this->location_filename =buf + this->location_filename;
+		std::cerr<<"buf + this->locfilename: "<<this->location_filename<<std::endl;
+	}
+	else if (this->http_params.find("X-Filename") != this->http_params.end() &&
 		this->http_params["X-Filename"].length() != 0 && getcwd(buf, sizeof(buf)))
 	{
 	    struct stat buffer;
@@ -508,6 +527,8 @@ void Request::Delete()
 				+ this->_loc.upload_store.substr(1)
 				+ "/"
 				+ trim(this->http_params["X-Filename"]);
+
+
 		if(stat(full_path.c_str(), &buffer) != 0)
 		{
 			std::cerr << "\033[31m[not found]: " << full_path << "\033[0m"<< std::endl;
@@ -516,24 +537,36 @@ void Request::Delete()
 			return;
 		}else{
 			std::cerr << "\033[32m[successfully found]: " << full_path << "\033[0m"<< std::endl;
-			f_path = (full_path);
+			if(this->location_filename.size()>this->_loc.root.size())
+				f_path = this->location_filename;
+			else
+				f_path = (full_path);
 		}
-	}else
+	}
+	else
 	{
 		HttpForms Badreq(this->_socket, 400,this->keepalive,"","",this->_ReqContent);
 		// Badreq._send();
 		return;
 	}
-
+	// if(this->location_filename.size()>this->_loc.root.size())
+	// {
+	// 	std::cerr<<"this->locfilename: "<<this->location_filename<<std::endl;
+	// 	f_path = this->location_filename;
+	// }
+	// else
+	// 	f_path = (full_path);
     // Try to delete the file
     if (std::remove(f_path.c_str()) == 0)
     {
+		std::cerr<<"removeok\n";
 		HttpForms ok(this->_socket,200,this->keepalive, "text/plain","success",this->_ReqContent);
 		// ok._send();
 		return;
     }
     else
     {
+		std::cerr<<"notfound\n";
         // file deletion failed, send 404 or 403
 		HttpForms notfound(this->_socket,404,this->keepalive,"","",this->_ReqContent);
 		// notfound._send();
