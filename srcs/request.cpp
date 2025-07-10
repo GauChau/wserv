@@ -108,18 +108,14 @@ bool match_location(const std::string& uri,const std::vector<LocationConfig> &lo
 
 void Request::check_allowed_methods(const ServerConfig &server)
 {
-	std::vector<LocationConfig>::const_iterator it_loc = server.locations.begin();
 	LocationConfig location_target;
-	// std::cerr<<"matchloc: |"<<match_location(this->r_location, server.locations, location_target).path<<"|"<<std::endl;
 	bool lol = match_location(this->r_location, server.locations, location_target);
-	// std::cerr<<"this->location_filename: "<<this->location_filename<<std::endl;
 	if(lol)
 	{
 		this->_loc = location_target;
 		std::vector<std::string>::const_iterator it_meth = location_target.allowed_methods.begin();
-		for(;it_meth != it_loc->allowed_methods.end();it_meth++)
+		for(;it_meth != location_target.allowed_methods.end();it_meth++)
 		{
-			// std::cerr<<"itmeth"<<*it_meth<<std::endl;
 			if(this->r_method == *it_meth)
 			{
 				if(location_target.root.size()>0)
@@ -127,8 +123,6 @@ void Request::check_allowed_methods(const ServerConfig &server)
 					this->location_filename = this->r_location;
 					this->location_filename.erase(0, this->_loc.path.size());
 					this->location_filename.insert(0, this->_loc.root);
-					// std::cerr<<"this->location_filename: "<<this->location_filename<<std::endl;
-					// std::cerr<<"this->r_location: "<<this->r_location<<std::endl;
 				}
 				this->authorized = true;
 				this->execute(""); // <--- then execute it
@@ -137,7 +131,7 @@ void Request::check_allowed_methods(const ServerConfig &server)
 		}
 		// 405
 
-		if(it_loc->allowed_methods.size() == 0)
+		if(location_target.allowed_methods.size() == 0)
 			this->execute(""); // <--- then execute it
 		else
 			this->execute("405"); // <--- then execute it
@@ -192,16 +186,17 @@ void	Request::writeData()
 		std::string buf;
 		while(getline(s,buf))
 		{
-
 			if (buf==this->r_boundary + "--\r"){
 				break;}
-			else if (buf==this->r_boundary+'\r')
+			else if (buf==this->r_boundary+'\r' || buf==this->r_boundary)
 			{
 				parsestate = !parsestate;
 			}
 			else if (parsestate)
 			{
 				this->file.fname = extract_field_path(buf, "filename=\"");
+				if(this->file.fname.size() ==0)
+					this->file.fname = extract_field_path(buf, "name=\"");
 
 				//GET CONTENTYPE LINE
 				getline(s,buf);
@@ -216,22 +211,20 @@ void	Request::writeData()
 				getline(s,buf);
 				std::string safe_name = sanitize_filename(this->file.fname);
 				std::string full_path = this->_loc.upload_store + "/" + safe_name;
-				// if(this->location_filename.size()>0)
-				// {
-				// 	full_path=this->location_filename;
-				// }
+				std::cerr<<"locfi:|"<<this->location_filename<<std::endl;
 				this->file.name = full_path;
+				// if(full_path.size()<1)
+				// 	full_path = this->_loc.upload_store + "/default.txt";
 				std::ofstream outFile(full_path.c_str(), std::ios::trunc | std::ios::binary);
 				if (!outFile)
 					throw std::ofstream::failure("aFailed to open file");
 			}
 			else
 			{
-
 				std::string& filename = this->file.name;
 				const std::string& content = buf+'\n';
-				if(filename.size()<1)
-					filename = this->_loc.upload_store + "/default.txt";
+				// if(filename.size()<1)
+				// 	filename = this->_loc.upload_store + "/default.txt";
 				std::ofstream outFile(filename.c_str(),std::ios::app | std::ios::binary);  // Creates the file if it doesn't exist
 				if (!outFile)
 					throw std::ofstream::failure("bFailed to open file");
@@ -253,7 +246,8 @@ void Request::Post()
 		if (pos != std::string::npos)
 		{
 			this->r_boundary = this->http_params.find("Content-Type")->second.substr(pos+9);
-			this->r_boundary.resize(this->r_boundary.size()-1);
+			if (*this->r_boundary.rbegin()=='\r')
+				this->r_boundary.resize(this->r_boundary.size()-1);
 			this->r_boundary = "--" + this->r_boundary;
 			if (*this->r_boundary.rbegin()==' ')
 				this->r_boundary.resize(this->r_boundary.size()-1);
@@ -300,14 +294,22 @@ void Request::Post()
 	}
 	try
 	{
-		this->writeData();
-		HttpForms ok(this->_socket, 200,this->keepalive,"","",this->_ReqContent);
-		// ok._send();
-		std::cout << "\033[32m[✓] POST request handled successfully!\033[0m" << std::endl;
+		if(this->location_filename.size()>this->_loc.root.size())
+		{
+			std::cerr<<this->location_filename<<std::endl;
+			HttpForms notok(this->_socket, 404,this->keepalive,"","",this->_ReqContent);
+		}
+		else
+		{
+			this->writeData();
+			HttpForms ok(this->_socket, 200,this->keepalive,"","",this->_ReqContent);
+			// ok._send();
+			std::cout << "\033[32m[✓] POST request handled successfully!\033[0m" << std::endl;
+		}
 	}
 	catch(const std::ofstream::failure& e)
 	{
-		HttpForms ok(this->_socket, 400,this->keepalive,"","",this->_ReqContent);
+		HttpForms ok(this->_socket, 403,this->keepalive,"","",this->_ReqContent);
 		std::cerr << e.what() << '\n';
 	}
 }
