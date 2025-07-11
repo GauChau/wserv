@@ -125,10 +125,12 @@ inline bool handle_client(int client_socket,  ServerConfig &serv)
     Request R(buffer, serv, client_socket, bytes_received);
 
     std::string response = R._get_ReqContent();
-    ssize_t sent = send(client_socket, response.c_str(), response.size(), 0);
+    ssize_t sent = send(client_socket, response.data(), response.size(), 0);
+    // std::cerr<<"req:|"<<response.data()<<"|r keep:"<<R.keepalive<<std::endl;
     if (sent < 0)
     {
         std::cerr << "\033[31m[x] send() failed: " << strerror(errno) << "\033[0m\n";
+        return true;
     }
     if (!R.keepalive)
     {

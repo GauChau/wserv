@@ -9,6 +9,7 @@ Request::~Request()
 Request::Request(char *raw, const ServerConfig &servr, int socket, ssize_t bytes_received)
     : _socket(socket),_server(servr),  _bytes_rec(bytes_received)
 {
+	// std::cerr<<"RAW:|"<<raw<<"|"<<std::endl;
     this->r_header.append(raw, this->_bytes_rec);
     std::istringstream iss(raw);
     std::string buffer;
@@ -160,7 +161,7 @@ void Request::execute(std::string s = "null")
 		for(unsigned long i = 0; i < this->_loc.allowed_methods.size(); i++)
 			bodi += "<p> - " + this->_loc.allowed_methods[i] + " Method</p>";
 
-		HttpForms exec405(this->_socket,405,this->keepalive,contentType,bodi,this->_ReqContent);
+		HttpForms notallowed(this->_socket,405,this->keepalive,contentType,bodi,this->_ReqContent);
 	}else
 	{
 		if (this->r_method == "GET")
@@ -170,6 +171,7 @@ void Request::execute(std::string s = "null")
 		else if (this->r_method == "DELETE")
 			this->Delete();
 	}
+	// std::cerr<<"dopne\n";
 }
 
 //PROBLEM: ECRIT UN \n DE TROP A LA FIN DU FICHIER
@@ -178,12 +180,13 @@ void	Request::writeData()
 	bool parsestate = false;
 	if (this->r_boundary =="void")
 	{
-		return;
+		parsestate = true;
 	}
-	else
-	{
+	// else
+	// {
 		std::istringstream s(this->r_body, std::ios::binary);
 		std::string buf;
+		// std::cerr<<"parsing BUFBBB:|"<<this->r_boundary<<std::endl;
 		while(getline(s,buf))
 		{
 			if (buf==this->r_boundary + "--\r"){
@@ -192,7 +195,7 @@ void	Request::writeData()
 			{
 				parsestate = !parsestate;
 			}
-			else if (parsestate)
+			else if (parsestate && this->r_boundary!="void")
 			{
 				this->file.fname = extract_field_path(buf, "filename=\"");
 				if(this->file.fname.size() ==0)
@@ -211,20 +214,36 @@ void	Request::writeData()
 				getline(s,buf);
 				std::string safe_name = sanitize_filename(this->file.fname);
 				std::string full_path = this->_loc.upload_store + "/" + safe_name;
-				std::cerr<<"locfi:|"<<this->location_filename<<std::endl;
 				this->file.name = full_path;
-				// if(full_path.size()<1)
-				// 	full_path = this->_loc.upload_store + "/default.txt";
 				std::ofstream outFile(full_path.c_str(), std::ios::trunc | std::ios::binary);
 				if (!outFile)
 					throw std::ofstream::failure("aFailed to open file");
+			}
+			else if (parsestate && this->r_boundary=="void")
+			{
+				this->file.fname = extract_field_path(this->r_header, "filename=\"");
+				if(this->file.fname.size() ==0)
+					this->file.fname = extract_field_path(this->r_header, "name=\"");
+
+				std::string::size_type pos;
+				pos = this->r_header.find("Content-Type: ");
+				if (pos != std::string::npos)
+					this->file.type = this->r_header.substr(pos+14);
+				//return to data mode
+				parsestate = !parsestate;
+				std::string safe_name = sanitize_filename(this->file.fname);
+				std::string full_path = this->_loc.upload_store + "/" + safe_name;
+				this->file.name = full_path;
+				std::ofstream outFile(full_path.c_str(), std::ios::trunc | std::ios::binary);
+				if (!outFile)
+					throw std::ofstream::failure("aFailed to open file");
+				outFile<<this->r_body;
+				break;
 			}
 			else
 			{
 				std::string& filename = this->file.name;
 				const std::string& content = buf+'\n';
-				// if(filename.size()<1)
-				// 	filename = this->_loc.upload_store + "/default.txt";
 				std::ofstream outFile(filename.c_str(),std::ios::app | std::ios::binary);  // Creates the file if it doesn't exist
 				if (!outFile)
 					throw std::ofstream::failure("bFailed to open file");
@@ -232,7 +251,7 @@ void	Request::writeData()
 			}
 
 		}
-	}
+	// }
 }
 // ________________POST METHOD____________________
 //PROBLEME POSSIBLE DE LOCATION
@@ -252,9 +271,11 @@ void Request::Post()
 			if (*this->r_boundary.rbegin()==' ')
 				this->r_boundary.resize(this->r_boundary.size()-1);
 		}
+		else
+			this->r_boundary = "void";
     }
 	else
-		this->r_boundary = "void";
+			this->r_boundary = "void";
 
 	//calculate data length
 	ssize_t  content_length = 0;
@@ -262,9 +283,10 @@ void Request::Post()
 	{
 		content_length = atol(this->http_params["Content-Length"].c_str());
 		if (content_length > 10 * 1024 * 1024) { // 10 MB limit
-			HttpForms toolarge(this->_socket,413,this->keepalive,"","",this->_ReqContent);
+			HttpForms toolarge(this->_socket,413,false,"","",this->_ReqContent);
 			// toolarge._send();
-			return;
+			std::cerr<<"ctnlentolarge: "<<content_length<<std::endl;
+			return ;
 		}
 	}
 
@@ -296,7 +318,7 @@ void Request::Post()
 	{
 		if(this->location_filename.size()>this->_loc.root.size())
 		{
-			std::cerr<<this->location_filename<<std::endl;
+			// std::cerr<<this->location_filename<<std::endl;
 			HttpForms notok(this->_socket, 404,this->keepalive,"","",this->_ReqContent);
 		}
 		else
@@ -309,7 +331,7 @@ void Request::Post()
 	}
 	catch(const std::ofstream::failure& e)
 	{
-		HttpForms ok(this->_socket, 403,this->keepalive,"","",this->_ReqContent);
+		HttpForms forbid(this->_socket, 403,this->keepalive,"","",this->_ReqContent);
 		std::cerr << e.what() << '\n';
 	}
 }
@@ -504,21 +526,21 @@ void Request::Get()
 void Request::Delete()
 {
 	// make sure that delete only runs into the upload/ path
-	std::cerr<<"DELETE this->r_location: "<<this->r_location<<std::endl;
-	std::cerr<<"this->locfilename: "<<this->location_filename<<std::endl;
+	// std::cerr<<"DELETE this->r_location: "<<this->r_location<<std::endl;
+	// std::cerr<<"this->locfilename: "<<this->location_filename<<std::endl;
 	char buf[PATH_MAX];
 	std::string f_path;
 
 	if(this->location_filename.size()>this->_loc.root.size()&& getcwd(buf, sizeof(buf)))
 	{
-		std::cerr<<"1ST\n";
-		std::cerr<<"this->locfilename: "<<this->location_filename<<std::endl;
+		// std::cerr<<"1ST\n";
+		// std::cerr<<"this->locfilename: "<<this->location_filename<<std::endl;
 		f_path = this->location_filename;
-		std::cerr<<"buf: "<<buf<<std::endl;
+		// std::cerr<<"buf: "<<buf<<std::endl;
 		if(*this->location_filename.begin()=='.')
 			this->location_filename.erase(0,1);
 		this->location_filename =buf + this->location_filename;
-		std::cerr<<"buf + this->locfilename: "<<this->location_filename<<std::endl;
+		// std::cerr<<"buf + this->locfilename: "<<this->location_filename<<std::endl;
 	}
 	else if (this->http_params.find("X-Filename") != this->http_params.end() &&
 		this->http_params["X-Filename"].length() != 0 && getcwd(buf, sizeof(buf)))

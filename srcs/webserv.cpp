@@ -201,6 +201,7 @@ void Webserv::start(void)
                     close(pfd.fd);
                     fds_to_remove.push_back(pfd.fd);
                 }
+                // std::cerr<<"crash"<<std::endl;
             }
         }
 
