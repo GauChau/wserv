@@ -81,7 +81,7 @@ struct ServerConfig
         client_addr;
     socklen_t
         client_addr_len;
-    size_t
+    ssize_t
         client_max_body_size;
     std::vector<LocationConfig>
         locations;

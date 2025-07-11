@@ -2,18 +2,18 @@
 
 static std::string trim(const std::string& str)
 {
-    size_t 
+    size_t
         start = str.find_first_not_of(" \t\r\n"),
         end = str.find_last_not_of(" \t\r\n");
-    return (start == std::string::npos) ? 
-        "" : 
+    return (start == std::string::npos) ?
+        "" :
         str.substr(start, end - start + 1);
 }
 
 // turn [10M, 1G, 254k] => straight size_t
-static size_t parseSize(const std::string& input)
+static ssize_t parseSize(const std::string& input)
 {
-    size_t multiplier = 1;
+    ssize_t multiplier = 1;
     std::string numPart = input;
     if (input[input.size() - 1] == 'K' || input[input.size() - 1] == 'k') {
         multiplier = 1024;
@@ -79,30 +79,30 @@ bool Webserv::parseConfigFile(const std::string& filename)
         line = trim(line);
         if (line.empty() || line[0] == '#') continue;
 
-        if (line == "server {") 
+        if (line == "server {")
         {
             context.push("server");
             cur_serv = ServerConfig(); // reset
-            
-        } else if (line == "location / {" || line == "route / {"  || (     // append new location 
-            line.find("location") != std::string::npos && line.find("/") != std::string::npos && 
+
+        } else if (line == "location / {" || line == "route / {"  || (     // append new location
+            line.find("location") != std::string::npos && line.find("/") != std::string::npos &&
             line.find("{") != std::string::npos)
-            || (  // append new route 
-            line.find("route") != std::string::npos && line.find("/") != std::string::npos && 
+            || (  // append new route
+            line.find("route") != std::string::npos && line.find("/") != std::string::npos &&
             line.find("{") != std::string::npos)
         )
         {
             context.push("location");
             serv_loc = LocationConfig(); // reset
-            size_t 
+            size_t
                 startPos = line.find('/'),
                 endPos = line.find('{');
 
                 serv_loc.path = line.substr(startPos, endPos - startPos - 1);
             //  std::cerr<<"path1"<<serv_loc.path<<"\n";
-        } else if (line == "}") 
+        } else if (line == "}")
         {
-            if (!context.empty()) 
+            if (!context.empty())
             {
                 if (context.top() == "location")
                     cur_serv.locations.push_back(serv_loc);
@@ -112,9 +112,9 @@ bool Webserv::parseConfigFile(const std::string& filename)
             }
         } else
         {
-            std::istringstream 
+            std::istringstream
                 iss(line);
-            std::string 
+            std::string
                 key,
                 value;
             iss >> key >> value;
@@ -147,18 +147,18 @@ bool Webserv::parseConfigFile(const std::string& filename)
                         //     s[2]
                         // ));
                     }
-                } 
+                }
                 // eaach route/location part
                 else if (context.top() == "location")
                 {
-                    if (key == "root") 
+                    if (key == "root")
                         serv_loc.root = value;
-                    else if (key == "autoindex") 
+                    else if (key == "autoindex")
                         serv_loc.autoindex = (value == "on");
                     else if (key == "return")
                     {
                         iss>>value;
-                        serv_loc.redirection = value;                        
+                        serv_loc.redirection = value;
                     }
                     else if (key == "methods" || key == "allowed_methods"){
                         // serv_loc.allowed_methods.push_back(line.substr(0, line.size() - 1));
@@ -173,11 +173,11 @@ bool Webserv::parseConfigFile(const std::string& filename)
                     }
                     else if (key == "index"){
                         serv_loc.index = (value);
-                    
+
                     }
-                    else if (key == "cgi_extension") 
+                    else if (key == "cgi_extension")
                         serv_loc.cgi_extension = (value);
-                    else if (key == "cgi_path") 
+                    else if (key == "cgi_path")
                         serv_loc.cgi_path = (value);
                     else if (key == "upload_dir")
                         serv_loc.upload_store = (value);
@@ -185,7 +185,7 @@ bool Webserv::parseConfigFile(const std::string& filename)
             }
         }
     }
-    
+
     file.close();
     std::cout << "\033[92m ==== SUCCESSFULLY PARSED " << servers.size() << " SERVERS ! ==== \033[0m" << std::endl;
     if(true == false)
@@ -197,13 +197,13 @@ bool Webserv::parseConfigFile(const std::string& filename)
                 servers[i].client_max_body_size = parseSize("10M");
 
             std::cout << "\033[1;96m__________ [Server " << i << "] ________ \n - host: " << servers[i].host << "]\n - port: " << servers[i].port <<"]\033[0m" << std::endl;
-            std::cout << "\033[1;96m - server_name: '" << servers[i].server_name << "' \n"; 
+            std::cout << "\033[1;96m - server_name: '" << servers[i].server_name << "' \n";
             std::cout << " - client_max_body_size: " << servers[i].client_max_body_size << " (bytes) \n";
             std::cout << " - error_pages: \n";
-            for (size_t a = 0; a < servers[i].error_pages.size(); ++a) 
+            for (size_t a = 0; a < servers[i].error_pages.size(); ++a)
                     std::cout << "\t [ " << servers[i].error_pages[a].first << ", " << servers[i].error_pages[a].second << "]" << std::endl;
             std::cout << "\033[0m" << std::endl;
-            for (size_t j = 0; j < servers[i].locations.size(); ++j) 
+            for (size_t j = 0; j < servers[i].locations.size(); ++j)
             {
                 std::cout << " \033[94m     (Location/Route): '" << servers[i].locations[j].path << "'\n"
                         << "\t -root: " << servers[i].locations[j].root << "\n"
@@ -216,7 +216,7 @@ bool Webserv::parseConfigFile(const std::string& filename)
                             std::cout << servers[i].locations[j].allowed_methods[k] << std::endl;
                         std::cout << "\t -cgi_path: " << servers[i].locations[j].cgi_path << "\n"
                         << "\t -cgi_extension: " << servers[i].locations[j].cgi_extension << "\n"
-                        << "\033[0m" 
+                        << "\033[0m"
                         << std::endl;
 
             }

@@ -7,7 +7,7 @@
 
 inline std::string readFile(const std::string& file_path)
 {
-    std::ifstream file(file_path.c_str());
+    std::ifstream file(file_path.c_str(), std::ios::binary);
     if (!file.is_open())
         return ""; // cant open file
 

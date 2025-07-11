@@ -59,6 +59,10 @@ HttpForms::HttpForms(int socket,int code, bool keepalive, std::string ctype, std
 	this->_setcodes();
 	this->_body = body;
 	this->_content_type = ctype;
+	if(ctype == "jpg")
+	{
+		ctype = "image/jpeg";
+	}
 	if (keepalive)
 	{
 		this->_connection = "keep-alive";
@@ -69,6 +73,7 @@ HttpForms::HttpForms(int socket,int code, bool keepalive, std::string ctype, std
 
 	if(this->_code_forms.find(code) == this->_code_forms.end())
 		code = 404;
+
 
 	std::stringstream res;
 	res << this->_code_forms.find(code)->second;

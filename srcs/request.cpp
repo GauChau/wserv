@@ -282,10 +282,10 @@ void Request::Post()
 	if (this->http_params.find("Content-Length") != this->http_params.end())
 	{
 		content_length = atol(this->http_params["Content-Length"].c_str());
-		if (content_length > 10 * 1024 * 1024) { // 10 MB limit
-			HttpForms toolarge(this->_socket,413,false,"","",this->_ReqContent);
+		if (content_length > this->_server.client_max_body_size * 1024 * 1024) { // 10 MB limit
+			HttpForms toolarge(this->_socket,413,false,"","Payload Toolarge",this->_ReqContent);
 			// toolarge._send();
-			std::cerr<<"ctnlentolarge: "<<content_length<<std::endl;
+			// std::cerr<<"ctnlentolarge: "<<content_length<<std::endl;
 			return ;
 		}
 	}
@@ -339,7 +339,12 @@ void Request::Post()
 
 
 
-
+bool is_directory(const char* path) {
+    struct stat statbuf;
+    if (stat(path, &statbuf) != 0)
+        return false; // path doesn't exist or error
+    return S_ISDIR(statbuf.st_mode);
+}
 
 // ______________________GET METHOD____________________________
 void Request::Get()
@@ -351,13 +356,29 @@ void Request::Get()
 
 	if (stat(full_path.c_str(), &st) == 0)
     {
-        if (S_ISDIR(st.st_mode) && (!this->_loc.index.empty() ||
-			((&(this->_loc.cgi_extension) != NULL && !this->_loc.cgi_extension.empty())) ))
+		if (S_ISDIR(st.st_mode) && (!this->_loc.index.empty() ||
+		((&(this->_loc.cgi_extension) != NULL && !this->_loc.cgi_extension.empty())) ))
         {
-            file_path = full_path + "/" + this->_loc.index;
+			file_path = full_path + "/" + this->_loc.index;
 			if(this->location_filename.size()> this->_loc.root.size())
 			{
 				file_path = this->location_filename;
+				// std::cerr<<"file_path"<<file_path+"\n";
+
+				if (is_directory(file_path.c_str()))
+				{
+					// HttpForms notfound(this->_socket, 404,this->keepalive,"", "",this->_ReqContent);
+					file_path = "[AUTOINDEX]";
+
+				}
+				else
+				{
+					std::ifstream file(file_path.c_str());
+					if(!file.is_open())
+						file_path = "[404]";
+					/* code */
+				}
+
 			}
         }
         else
@@ -457,12 +478,15 @@ void Request::Get()
 		// cgi or default
 		if(&(this->_loc.cgi_extension) == NULL || this->_loc.cgi_extension.empty())
 		{
+       		// return ""; // cant open file
 			const std::string&
-				body = readFile(file_path),
-				contentType = "text/html";
+				body = readFile(file_path);
+				std::string contentType=file_path.substr(file_path.rfind(".")+1);
 			HttpForms ok(this->_socket, 200,this->keepalive, contentType, body,this->_ReqContent);
 		}else
 		{
+			std::cerr<<"333\n";
+
 			std::string script_path;
 			char cwd[PATH_MAX];
 			if (getcwd(cwd, sizeof(cwd)) == NULL) {
@@ -512,6 +536,7 @@ void Request::Get()
 			}
 			else
 				body = cgi_output; // no headers? treat all as body
+			std::cerr<<"444\n";
 
 			HttpForms ok(this->_socket, 200,this->keepalive, contentType, body,this->_ReqContent);
 			// ok._send();
