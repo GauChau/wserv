@@ -155,17 +155,9 @@ void Webserv::start(void)
                     std::cerr << "Error: no ServerConfig for fd " << pfd.fd << std::endl;
                     continue;
                 }
-
-                // if(poll_fds.size() > 4 + 0)
-                // {
-                //     pfd.revents = 0;
-                //     continue ;
-                // }
-                int client_fd = accept(pfd.fd,
-                    (struct sockaddr*)&(serv->client_addr),
-                    &serv->client_addr_len);
-
-                    if (client_fd < 0)
+                int client_fd = accept(pfd.fd, (struct sockaddr*)&(serv->client_addr), &serv->client_addr_len);
+                
+                if (client_fd < 0)
                     continue;
                 std::cerr<<"create socket n:"<<client_fd<<std::endl;
 
@@ -201,7 +193,6 @@ void Webserv::start(void)
                     close(pfd.fd);
                     fds_to_remove.push_back(pfd.fd);
                 }
-                // std::cerr<<"crash"<<std::endl;
             }
         }
 

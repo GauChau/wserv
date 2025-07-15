@@ -1,0 +1,57 @@
+curl -i http://127.0.0.1:8088/
+
+
+// post
+echo "ertertret ert \nzer\n" > test.txt
+curl -i -X POST -F "file=@test.txt" http://127.0.0.1:8088/upload
+curl -i http://127.0.0.1:8088/upload/test.txt
+dd if=/dev/zero of=bigfile bs=1M count=11
+curl -i -X POST -F "file=@bigfile" http://127.0.0.1:8088/upload
+
+
+// delete
+curl -i -X DELETE http://127.0.0.1:8088/delete-upload/test.txt
+curl -i http://127.0.0.1:8088/delete-upload
+
+
+// CGI's
+curl -i http://127.0.0.1:8088/cgi-py/script.py
+curl -i -X POST -d "name=value" http://127.0.0.1:8088/cgi-py/script.py
+curl -i http://127.0.0.1:8088/cgi-rb/script.rb
+
+
+// redirects
+curl -i http://127.0.0.1:8088/call-redirect
+curl -i -L http://127.0.0.1:8088/call-redirect
+
+
+// autoindex
+curl -i http://127.0.0.1:8088/files
+curl -i http://127.0.0.1:8088/files/test.txt
+
+// 403
+curl -i http://127.0.0.1:8088/null
+curl -i http://127.0.0.1:8088/null/111/222/333
+
+// 404
+curl -i http://127.0.0.1:8088/noazer..//./ERT
+
+// HEAD request
+curl -I http://127.0.0.1:8088/
+
+// 405 or 403 (disallowed methods)
+curl -i -X PUT http://127.0.0.1:8088/upload
+
+// boundary test
+curl -i -X POST http://127.0.0.1:8088/upload \
+  -H "Content-Type: multipart/form-data; boundary=----WebKitFormBoundary7MA4YWxkTrZu0gW" \
+  --data-binary $'------WebKitFormBoundary7MA4YWxkTrZu0gW\r\nContent-Disposition: form-data; name="file"; filename="test.txt"\r\nContent-Type: text/plain\r\n\r\nThis is a test.\r\n------WebKitFormBoundary7MA4YWxkTrZu0gW--'
+
+// keep-alive test
+curl -i --http1.1 --header "Connection: keep-alive" http://127.0.0.1:8088/
+curl -i --http1.1 --header "Connection: keep-alive" \
+  http://127.0.0.1:8088/ \
+  --next \
+  -i http://127.0.0.1:8088/upload
+curl -i --http1.1 --header "Connection: close" http://127.0.0.1:8088/
+

@@ -31,7 +31,7 @@ struct file_id
 class Request
 {
     public:
-      Request(char* buffer, const ServerConfig &serv, int socket, ssize_t bytes_rec);
+      Request(const char* buffer, const ServerConfig &serv, int socket, ssize_t bytes_rec);
       ~Request();
       void check_allowed_methods(const ServerConfig &serv);
       void execute(std::string s);
