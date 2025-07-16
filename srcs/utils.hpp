@@ -103,10 +103,11 @@ inline bool handle_client(int client_socket,  ServerConfig &serv)
 {
     char buffer[2048];
     std::string chunky="";
-    ssize_t bytes_received = 0;
+    ssize_t bytes_received = 0, total_bytes=0;
     do
     {
-        bytes_received += recv(client_socket, buffer, sizeof(buffer), 0);
+        bytes_received = recv(client_socket, buffer, sizeof(buffer), 0);
+        total_bytes+= bytes_received;
 
         // std::cerr<<"BUFFER:\n"<<buffer<<"\n|ENDOFBUFFER"<<std::endl;
 
@@ -128,29 +129,8 @@ inline bool handle_client(int client_socket,  ServerConfig &serv)
         chunky.append(buffer,bytes_received);
     }while (chunky.find("\r\n\r\n") == std::string::npos);
 
-
-
-    // ssize_t bytes_received = recv(client_socket, buffer, sizeof(buffer), 0);
-    // // std::cerr<<"BUFFER:\n"<<buffer<<"\n|ENDOFBUFFER"<<std::endl;
-
-    // if (bytes_received < 0)
-    // {
-    //     if (errno == EAGAIN || errno == EWOULDBLOCK)
-    //     {
-    //         std::cerr<<"HANDLE clientsocket pollin: "<<client_socket<<"\n";
-    //         return false;
-    //     }
-    //     std::cerr << "\033[31m[x] recv() error on client " << client_socket << ": " << strerror(errno) << "\033[0m\n";
-    //     return true; // done with this socket (error, cleanup)
-    // }
-    // else if (bytes_received == 0)
-    // {
-    //     std::cerr << "\033[33m[~] Client disconnected: " << client_socket << "\033[0m\n";
-    //     return true;
-    // }
-
     // log  received HTTP request
-    Request R(chunky.c_str(), serv, client_socket, bytes_received);
+    Request R(chunky.c_str(), serv, client_socket, total_bytes);
 
     std::string response = R._get_ReqContent();
     ssize_t sent = send(client_socket, response.data(), response.size(), 0);
@@ -167,17 +147,6 @@ inline bool handle_client(int client_socket,  ServerConfig &serv)
     return false;
 }
 
-// template <typename K, typename V>
-// bool contientValeur(const std::map<K, V>& maMap, const V& valeurRecherchee) {
-//     typename std::map<K, V>::const_iterator it;
-//     for (it = maMap.begin(); it != maMap.end(); ++it) {
-//         if (it->second == valeurRecherchee) {
-//             return true;
-//         }
-//     }
-//     return false;
-// }
-// - exec CGI script in a fork()
 // - returns CGI stdout in a std::str
 inline std::string executeCGI(const std::string& scriptPath, const std::string& method, const std::string& body, std::map<std::string, std::string> env)
 {
