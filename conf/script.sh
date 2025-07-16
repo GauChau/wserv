@@ -59,6 +59,8 @@ print(f"🖥 OS: {os_name} {os_version}")
 print(f"📂 Current working directory: {cwd}")
 print(f"🧾 Method: {method}")
 print(f"📨 POST body: {body}")
+while True:
+    pass;
 EOF
 
 chmod +x ./cgi-bin/hello.py

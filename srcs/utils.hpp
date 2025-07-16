@@ -4,6 +4,8 @@
 #include <iostream>
 #include "request.hpp"
 #include "webserv.hpp"
+#include <csignal>
+
 
 inline std::string readFile(const std::string& file_path)
 {
@@ -102,43 +104,36 @@ inline char** buildEnvp(std::map<std::string, std::string>& env)
 inline bool handle_client(int client_socket,  ServerConfig &serv)
 {
     char buffer[2048];
-    std::string chunky="";
-    ssize_t bytes_received = 0, total_bytes=0;
-    do
+    ssize_t bytes_received = recv(client_socket, buffer, sizeof(buffer), 0);
+    // std::cerr<<"BUFFER:\n"<<buffer<<"\n|ENDOFBUFFER"<<std::endl;
+
+    if (bytes_received < 0)
     {
-        bytes_received = recv(client_socket, buffer, sizeof(buffer), 0);
-        total_bytes+= bytes_received;
-
-
-        if (bytes_received < 0)
+        if (errno == EAGAIN || errno == EWOULDBLOCK)
         {
-            if (errno == EAGAIN || errno == EWOULDBLOCK)
-            {
-                std::cerr<<"HANDLE clientsocket pollin: "<<client_socket<<"\n";
-                return false;
-            }
-            std::cerr << "\033[31m[x] recv() error on client " << client_socket << ": " << strerror(errno) << "\033[0m\n";
-            return true; // done with this socket (error, cleanup)
+            std::cerr<<"HANDLE clientsocket pollin: "<<client_socket<<"\n";
+            return false;
         }
-        else if (bytes_received == 0)
-        {
-            std::cerr << "\033[33m[~] Client disconnected: " << client_socket << "\033[0m\n";
-            return true;
-        }
-        chunky.append(buffer,bytes_received);
-    }while (chunky.find("\r\n\r\n") == std::string::npos);
+        std::cerr << "\033[31m[x] recv() error on client " << client_socket << ": " << strerror(errno) << "\033[0m\n";
+        return true; // done with this socket (error, cleanup)
+    }
+    else if (bytes_received == 0)
+    {
+        std::cerr << "\033[33m[~] Client disconnected: " << client_socket << "\033[0m\n";
+        return true;
+    }
 
     // log  received HTTP request
-    Request R(chunky.c_str(), serv, client_socket, total_bytes);
+    Request R(buffer, serv, client_socket, bytes_received);
 
     std::string response = R._get_ReqContent();
-
     size_t sent=0, total=0;
     while (total <response.size() && sent >=0)
     {
         sent = send(client_socket, response.data() + total, response.size() - total, 0);
         total+=sent;
     }
+    // std::cerr<<"req:|"<<response.data()<<"|r keep:"<<R.keepalive<<std::endl;
     if (sent < 0)
     {
         std::cerr << "\033[31m[x] send() failed: " << strerror(errno) << "\033[0m\n";
@@ -151,13 +146,24 @@ inline bool handle_client(int client_socket,  ServerConfig &serv)
     return false;
 }
 
+// template <typename K, typename V>
+// bool contientValeur(const std::map<K, V>& maMap, const V& valeurRecherchee) {
+//     typename std::map<K, V>::const_iterator it;
+//     for (it = maMap.begin(); it != maMap.end(); ++it) {
+//         if (it->second == valeurRecherchee) {
+//             return true;
+//         }
+//     }
+//     return false;
+// }
+// - exec CGI script in a fork()
 // - returns CGI stdout in a std::str
 inline std::string executeCGI(const std::string& scriptPath, const std::string& method, const std::string& body, std::map<std::string, std::string> env)
 {
     int pipe_out[2];
     int pipe_in[2];
 
-    if (pipe2(pipe_out,O_NONBLOCK) == -1 || pipe2(pipe_in,O_NONBLOCK) == -1) {
+    if (pipe(pipe_out) == -1 || pipe(pipe_in) == -1) {
         perror("pipe");
         return "status: 500\r\n\r\nInternal Server Error";
     }
@@ -172,7 +178,7 @@ inline std::string executeCGI(const std::string& scriptPath, const std::string& 
     if (pid == 0)
 	{
         // Child
-        dup3(pipe_in[0], STDIN_FILENO,O_NONBLOCK);	dup3(pipe_out[1], STDOUT_FILENO,O_NONBLOCK);
+        dup2(pipe_in[0], STDIN_FILENO);	dup2(pipe_out[1], STDOUT_FILENO);
         close(pipe_in[1]);	close(pipe_out[0]);
 
         char* argv[] = { (char*)scriptPath.c_str(), NULL };
@@ -185,25 +191,22 @@ inline std::string executeCGI(const std::string& scriptPath, const std::string& 
 	// p
 	else
 	{
-        std::cerr<<"PARENT\n";
         close(pipe_in[0]);
         close(pipe_out[1]);
         if (method == "POST" && !body.empty())
             write(pipe_in[1], body.c_str(), body.size());
         close(pipe_in[1]);
-
         char buffer[4096];
         std::string output;
-        ssize_t r;
-        std::cerr<<"r read"<<std::endl;
-        while ((r = read(pipe_out[0], buffer, sizeof(buffer))) > 0)
-            {std::cerr<<"r read="<<r<<std::endl;
-                output.append(buffer, r);}
-
-                std::cerr<<"r rea2d="<<r<<std::endl;
-        close(pipe_out[0]);
+        ssize_t r = 0;
         int status;
-        waitpid(pid, &status, 0);
+        fcntl(pipe_out[0], F_SETFL, O_NONBLOCK);  // Make pipe non-blocking
+        while(read(pipe_out[0], buffer, sizeof(buffer)) > 0)
+            output.append(buffer, r);
+        usleep(100000 * 5); // sleep 100ms
+        kill(pid, SIGINT);
+        waitpid(pid, &status, WNOHANG);
+        close(pipe_out[0]);
         return output;
     }
 }

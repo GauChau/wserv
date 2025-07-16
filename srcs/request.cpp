@@ -6,7 +6,7 @@
 Request::~Request()
 { }
 
-Request::Request(const char *raw, const ServerConfig &servr, int socket, ssize_t bytes_received)
+Request::Request(char *raw, const ServerConfig &servr, int socket, ssize_t bytes_received)
     : _socket(socket),_server(servr),  _bytes_rec(bytes_received)
 {
     this->r_header.append(raw, this->_bytes_rec);
@@ -71,6 +71,8 @@ void Request::check_allowed_methods(const ServerConfig &server)
 				{
 					this->location_filename = this->r_location;
 					this->location_filename.erase(0, this->_loc.path.size());
+					// if (this->_loc.upload_store.size() >= 1)
+					// 	this->location_filename.insert(0, this->_loc.upload_store.substr(1));
 					this->location_filename.insert(0, this->_loc.root);
 				}
 				this->authorized = true;
@@ -144,7 +146,7 @@ void	Request::writeData()
 			parsestate = !parsestate;
 
 			getline(s,buf);
-			std::string
+			std::string 
 					safe_name = sanitize_filename(this->file.fname),
 					full_path = this->_loc.upload_store + "/" + safe_name;
 			this->file.name = full_path;
@@ -164,13 +166,13 @@ void	Request::writeData()
 				this->file.type = this->r_header.substr(pos+14);
 
 			parsestate = !parsestate;
-			std::string
+			std::string 
 					safe_name = sanitize_filename(this->file.fname),
 					full_path = this->_loc.upload_store + "/" + safe_name;
 			this->file.name = full_path;
 			std::ofstream outFile(full_path.c_str(), std::ios::trunc | std::ios::binary);
 			if (!outFile)
-				throw std::ofstream::failure("cFailed to open file");
+				throw std::ofstream::failure("aFailed to open file");
 			outFile << this->r_body;
 			break;
 		}
@@ -261,28 +263,41 @@ void Request::Post()
 
 
 
-// ______________________GET METHOD____________________________
 void Request::Get()
 {
     std::string full_path = this->_loc.root;
     std::string file_path;
 
     struct stat st;
-
 	if (stat(full_path.c_str(), &st) == 0)
     {
-		if (S_ISDIR(st.st_mode) && (!this->_loc.index.empty() ||
-		((&(this->_loc.cgi_extension) != NULL && !this->_loc.cgi_extension.empty())) ))
+		if (S_ISDIR(st.st_mode) && (!this->_loc.index.empty() 
+		|| ((&(this->_loc.cgi_extension) != NULL && !this->_loc.cgi_extension.empty())) ))
         {
 			file_path = full_path + "/" + this->_loc.index;
-			if(this->location_filename.size()> this->_loc.root.size())
+			// if has someth after loc (potential valid file to GET)
+			if(this->location_filename.size() > this->_loc.root.size())
 			{
+				// std::string::size_type pos = this->location_filename.rfind('/');
+				// if (pos != std::string::npos && this->_loc.upload_store.size() >= 1)
+				// 	this->location_filename.insert(pos, this->_loc.upload_store.substr(1));
+				// std::string rez = "..";
+				// pos = this->location_filename.rfind('/');
+				// for (std::string::size_type i = 0; i < this->location_filename.length(); ++i)
+				// 	if (this->location_filename[i] != '.'|| (i > pos))
+				// 		rez += this->location_filename[i];
+				// this->location_filename = (rez);
+				std::string::size_type p = this->location_filename.rfind('/');
+				this->location_filename = this->location_filename.substr(p); // Skip the '/'
+				this->location_filename.insert(0, this->_loc.upload_store);
+				std::cout << "'"<< this->location_filename << "'" << std::endl;
 				file_path = this->location_filename;
 				if (is_directory(file_path.c_str()))
 					file_path = "[AUTOINDEX]";
 				else
 				{
 					std::ifstream file(file_path.c_str());
+					std::cerr << "err: openning: " << file_path << std::endl;
 					if(!file.is_open())
 						file_path = "[404]";
 				}
@@ -381,7 +396,6 @@ void Request::Get()
 	else
 	{
 		// default get
-		// std::cerr<<"DEFAU\n";
 		if(&(this->_loc.cgi_extension) == NULL || this->_loc.cgi_extension.empty())
 		{
 			const std::string&
@@ -392,8 +406,6 @@ void Request::Get()
 		// cgi
 		else
 		{
-			std::cerr<<"333\n";
-
 			std::string script_path;
 			char cwd[PATH_MAX];
 			if (getcwd(cwd, sizeof(cwd)) == NULL) {
@@ -404,8 +416,6 @@ void Request::Get()
 			script_path += "/cgi-bin/";
 			script_path += findfrstWExtension(script_path, this->_loc.cgi_extension);
 
-
-			std::cout << script_path << std::endl;
 			std::map<std::string, std::string> env;
 			env["REQUEST_METHOD"] = this->r_method;
 			std::stringstream ss; ss << this->r_body.size();
@@ -417,7 +427,7 @@ void Request::Get()
 			env["REDIRECT_STATUS"] = "200";
 
 
-			std::string
+			std::string 
 					cgi_output = executeCGI(script_path, this->r_method, this->r_body, env),
 					contentType = "text/plain",
 					body;
@@ -442,7 +452,6 @@ void Request::Get()
 			}
 			else
 				body = cgi_output; // no headers? treat all as body
-			std::cerr << "444\n";
 			HttpForms ok(this->_socket, 200,this->keepalive, contentType, body,this->_ReqContent);
 		}
 	}

@@ -99,7 +99,14 @@ void Webserv::init(void)
     }
 }
 
+// SIGINT 
+volatile sig_atomic_t g_terminate = 0;
 
+inline void handle_sigint(int signal)
+{
+    if (signal == SIGINT)
+        g_terminate = 1;
+}
 
 void Webserv::start(void)
 {
@@ -124,13 +131,14 @@ void Webserv::start(void)
     }
 
     std::cout << "\033[92m ===== STARTED " << poll_fds.size() << " SERVERZ ===== \033[0m" << std::endl;
-
-    while (true)
+    std::signal(SIGINT, handle_sigint);     
+    while (!g_terminate)
     {
-        int ret = poll(poll_fds.data(), poll_fds.size(), -1);
+        int ret = poll(poll_fds.data(), poll_fds.size(), 100); // 100ms timeoutt
 
         if (ret < 0)
         {
+            if (errno == EINTR) continue; // poll was interrupted by signal
             perror("poll");
             break;
         }
@@ -215,4 +223,11 @@ void Webserv::start(void)
             }
         }
     }
+    // Close all client sockets
+    for (std::map<int, ServerConfig*>::iterator it = client_fd_to_server.begin(); it != client_fd_to_server.end(); ++it)
+        close(it->first);
+    // Close all server sockets
+    for (std::set<int>::iterator it = server_fds.begin(); it != server_fds.end(); ++it)
+        close(*it);
+    std::cout << "Server shutdown gracefully.\n";
 }
