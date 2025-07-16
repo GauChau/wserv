@@ -109,7 +109,6 @@ inline bool handle_client(int client_socket,  ServerConfig &serv)
         bytes_received = recv(client_socket, buffer, sizeof(buffer), 0);
         total_bytes+= bytes_received;
 
-        // std::cerr<<"BUFFER:\n"<<buffer<<"\n|ENDOFBUFFER"<<std::endl;
 
         if (bytes_received < 0)
         {
@@ -133,8 +132,13 @@ inline bool handle_client(int client_socket,  ServerConfig &serv)
     Request R(chunky.c_str(), serv, client_socket, total_bytes);
 
     std::string response = R._get_ReqContent();
-    ssize_t sent = send(client_socket, response.data(), response.size(), 0);
-    // std::cerr<<"req:|"<<response.data()<<"|r keep:"<<R.keepalive<<std::endl;
+
+    size_t sent=0, total=0;
+    while (total <response.size() && sent >=0)
+    {
+        sent = send(client_socket, response.data() + total, response.size() - total, 0);
+        total+=sent;
+    }
     if (sent < 0)
     {
         std::cerr << "\033[31m[x] send() failed: " << strerror(errno) << "\033[0m\n";
@@ -153,7 +157,7 @@ inline std::string executeCGI(const std::string& scriptPath, const std::string& 
     int pipe_out[2];
     int pipe_in[2];
 
-    if (pipe(pipe_out) == -1 || pipe(pipe_in) == -1) {
+    if (pipe2(pipe_out,O_NONBLOCK) == -1 || pipe2(pipe_in,O_NONBLOCK) == -1) {
         perror("pipe");
         return "status: 500\r\n\r\nInternal Server Error";
     }
@@ -168,7 +172,7 @@ inline std::string executeCGI(const std::string& scriptPath, const std::string& 
     if (pid == 0)
 	{
         // Child
-        dup2(pipe_in[0], STDIN_FILENO);	dup2(pipe_out[1], STDOUT_FILENO);
+        dup3(pipe_in[0], STDIN_FILENO,O_NONBLOCK);	dup3(pipe_out[1], STDOUT_FILENO,O_NONBLOCK);
         close(pipe_in[1]);	close(pipe_out[0]);
 
         char* argv[] = { (char*)scriptPath.c_str(), NULL };
@@ -181,6 +185,7 @@ inline std::string executeCGI(const std::string& scriptPath, const std::string& 
 	// p
 	else
 	{
+        std::cerr<<"PARENT\n";
         close(pipe_in[0]);
         close(pipe_out[1]);
         if (method == "POST" && !body.empty())
@@ -190,9 +195,12 @@ inline std::string executeCGI(const std::string& scriptPath, const std::string& 
         char buffer[4096];
         std::string output;
         ssize_t r;
+        std::cerr<<"r read"<<std::endl;
         while ((r = read(pipe_out[0], buffer, sizeof(buffer))) > 0)
-            output.append(buffer, r);
+            {std::cerr<<"r read="<<r<<std::endl;
+                output.append(buffer, r);}
 
+                std::cerr<<"r rea2d="<<r<<std::endl;
         close(pipe_out[0]);
         int status;
         waitpid(pid, &status, 0);

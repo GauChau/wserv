@@ -61,7 +61,7 @@ HttpForms::HttpForms(int socket,int code, bool keepalive, std::string ctype, std
 	this->_content_type = ctype;
 	if(ctype == "jpg")
 	{
-		ctype = "image/jpeg";
+		this->_content_type = "image/jpeg";
 	}
 	if (keepalive)
 	{
@@ -73,7 +73,6 @@ HttpForms::HttpForms(int socket,int code, bool keepalive, std::string ctype, std
 
 	if(this->_code_forms.find(code) == this->_code_forms.end())
 		code = 404;
-
 
 	std::stringstream res;
 	res << this->_code_forms.find(code)->second;

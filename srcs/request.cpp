@@ -170,7 +170,7 @@ void	Request::writeData()
 			this->file.name = full_path;
 			std::ofstream outFile(full_path.c_str(), std::ios::trunc | std::ios::binary);
 			if (!outFile)
-				throw std::ofstream::failure("aFailed to open file");
+				throw std::ofstream::failure("cFailed to open file");
 			outFile << this->r_body;
 			break;
 		}
@@ -381,6 +381,7 @@ void Request::Get()
 	else
 	{
 		// default get
+		// std::cerr<<"DEFAU\n";
 		if(&(this->_loc.cgi_extension) == NULL || this->_loc.cgi_extension.empty())
 		{
 			const std::string&
