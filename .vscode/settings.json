@@ -132,6 +132,9 @@
     "complex": "cpp",
     "filesystem": "cpp",
     "set": "cpp",
-    "csignal": "cpp"
+    "csignal": "cpp",
+    "print": "cpp",
+    "queue": "cpp",
+    "list": "cpp"
   }
 }

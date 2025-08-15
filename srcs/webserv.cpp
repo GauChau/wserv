@@ -2,6 +2,7 @@
 #include "request.hpp"
 #include "HttpForms.hpp"
 #include "utils.hpp"
+#include "client.hpp"
 
 Webserv::Webserv(void)
 {
@@ -111,10 +112,12 @@ inline void handle_sigint(int signal)
 void Webserv::start(void)
 {
     std::vector<pollfd> poll_fds;
+    std::list<pollfd> poll_fds_list;
     std::map<int, ServerConfig*> client_fd_to_server; // client_socket -> svconfig
     std::map<int, ServerConfig*> fd_to_server;        // server_socket -> svconfig
     std::vector<int> fds_to_remove;
     std::set<int> server_fds;
+    std::map<int, client*> clientlist;
 
     // Register all server sockets
     for (size_t i = 0; i < this->servers.size(); ++i)
@@ -123,7 +126,7 @@ void Webserv::start(void)
 
         pollfd pfd;
         pfd.fd = server_fd;
-        pfd.events = POLLIN;
+        pfd.events = POLLIN;// | POLLOUT; 
         poll_fds.push_back(pfd);
         pfd.revents = 0;
         fd_to_server[server_fd] = &this->servers[i];
@@ -142,7 +145,7 @@ void Webserv::start(void)
             perror("poll");
             break;
         }
-         if (ret ==0)
+         if (ret == 0)
         {
             continue;
         }
@@ -152,9 +155,30 @@ void Webserv::start(void)
         for (size_t i = 0; i < poll_fds.size(); ++i)
         {
             struct pollfd& pfd = poll_fds[i];
-            if (!(pfd.revents & POLLIN))
-                continue;
+            std::cerr<<pfd.fd<<" sock has revents: "<<pfd.revents << "and event are: "<<pfd.events<<std::endl;
 
+            if ((pfd.revents & POLLOUT) && pfd.events == POLLOUT)
+            {
+                // std::cerr<<" IN POLLOUT LOOOP: ";
+                if (clientlist[pfd.fd]->getStatus() == WRITING)
+                {
+                    clientlist[pfd.fd]->answerClient(pfd);
+                    std::cerr<<"TREATED, NOW: "<<pfd.fd<<" sock has revents: "<<pfd.revents << "and event are: "<<pfd.events<<std::endl;
+                    // if (clientlist[pfd.fd]->getStatus() == DONE)
+                    // {
+                    //     // std::cerr<<"delete socket n:"<<pfd.fd<<std::endl;
+                    //     close(pfd.fd);
+                    //     fds_to_remove.push_back(pfd.fd);
+                    //     delete clientlist[pfd.fd];
+                    //     clientlist.erase(pfd.fd);
+                    // }
+                }
+                
+            }
+
+            if (!(pfd.revents & POLLIN))//| POLLOUT)))
+                continue;
+            
             if (server_fds.count(pfd.fd))
             {
                 ServerConfig* serv = fd_to_server[pfd.fd];
@@ -167,40 +191,36 @@ void Webserv::start(void)
                 
                 if (client_fd < 0)
                     continue;
+                
                 std::cerr<<"create socket n:"<<client_fd<<std::endl;
 
                 // socket timeout (optional, useful)
                 struct timeval timeout = {10, 0}; // 10 seconds
                 setsockopt(client_fd, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout));
-
+                
                 // make non-blocking
                 int flags = fcntl(client_fd, F_GETFL, 0);
                 if (flags != -1)
                     fcntl(client_fd, F_SETFL, flags | O_NONBLOCK);
 
-                // track new client socket
+
                 pollfd client_pfd;
                 client_pfd.fd = client_fd;
-                client_pfd.events = POLLIN;
+                client_pfd.events = POLLIN;// | POLLOUT;
                 client_pfd.revents = 0;
                 poll_fds.push_back(client_pfd);
                 client_fd_to_server[client_fd] = serv;
-
+                clientlist[client_fd] = new client(client_pfd, serv);                
             }
-            // handle client req
             else
             {
-                ServerConfig* serv = client_fd_to_server[pfd.fd];
+                 ServerConfig* serv = client_fd_to_server[pfd.fd];
                 if (!serv)
                     continue;
 
-                bool done = handle_client(pfd.fd, *serv);
-                if (done)
-                {
-                    std::cerr<<"delete socket n:"<<pfd.fd<<std::endl;
-                    close(pfd.fd);
-                    fds_to_remove.push_back(pfd.fd);
-                }
+                clientlist[pfd.fd]->handle_jesus(pfd);
+               
+                
             }
         }
 

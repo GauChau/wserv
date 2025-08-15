@@ -7,16 +7,173 @@
 #include <csignal>
 
 
-inline std::string readFile(const std::string& file_path)
+inline std::string nonblocking_readcgi(const std::string& file_path, int input_fd = -1, int pid =-1)
 {
-    std::ifstream file(file_path.c_str(), std::ios::binary);
-    if (!file.is_open())
-        return ""; // cant open file
+    int fd;
+    if(input_fd == - 1){
+     fd = open(file_path.c_str(), O_RDONLY | O_NONBLOCK);
+        if (fd < 0)
+            return "";  // Can't open file
+    }else
+    {
+        fd = input_fd;
+    }
 
-    std::stringstream buffer;
-    buffer << file.rdbuf();  // Read entire file contents into buffer
-    return buffer.str();     // Return as a std::string
+    std::string content;
+    char buffer[4096];
+    struct pollfd pfd;
+    pfd.fd = fd;
+    pfd.events = POLLIN;
+    ssize_t bytes_read;
+    do
+    {
+        int ret = poll(&pfd, 1, 4000);  // 1 second timeout
+        if (ret < 0) {
+            close(fd);
+            return "";
+        } else if (ret == 0) 
+            {
+                close(fd);
+                kill(pid,SIGTERM);
+            break ;
+        }
+        
+
+        if (pfd.revents & POLLIN)
+        {
+            std::cerr<<"retardboucle\n";
+
+            bytes_read = read(fd, buffer, sizeof(buffer));
+            if (bytes_read > 0)
+                content.append(buffer, bytes_read);
+            else if (bytes_read == 0) 
+                {close(fd);break;}
+            else {
+                if (errno == EAGAIN || errno == EWOULDBLOCK)
+                    continue; // try again
+                close(fd);
+                return "";
+            }
+        }
+    }while(bytes_read != 0 && (pfd.revents & POLLIN));
+
+    close(fd);
+    return content;
 }
+
+
+inline std::string nonblocking_read(const std::string& file_path, int input_fd = -1)
+{
+    int fd;
+    if(input_fd == - 1){
+     fd = open(file_path.c_str(), O_RDONLY | O_NONBLOCK);
+        if (fd < 0)
+            return "";  // Can't open file
+    }else
+    {
+        fd = input_fd;
+    }
+
+    std::string content;
+    char buffer[4096];
+    struct pollfd pfd;
+    pfd.fd = fd;
+    pfd.events = POLLIN;
+    ssize_t bytes_read;
+    do
+    {
+        int ret = poll(&pfd, 1, 1000);  // 1 second timeout
+        if (ret < 0) {
+            close(fd);
+            return "";
+        } else if (ret == 0) 
+            break ;
+        
+
+        if (pfd.revents & POLLIN)
+        {
+            bytes_read = read(fd, buffer, sizeof(buffer));
+            if (bytes_read > 0)
+                content.append(buffer, bytes_read);
+            else if (bytes_read == 0) 
+                break;
+            else {
+                if (errno == EAGAIN || errno == EWOULDBLOCK)
+                    continue; // try again
+                close(fd);
+                return "";
+            }
+        }
+
+    }while(bytes_read != 0);
+
+    close(fd);
+    return content;
+}
+
+inline ssize_t nonblocking_recv(int socket_fd, char *buffer, unsigned int n)
+{
+    (void)(n);
+    struct pollfd pfd;
+    pfd.fd = (socket_fd);
+    pfd.events = POLLIN;
+
+
+    int ret = poll(&pfd, 1, 200);  // 0.2 second timeout
+    if (ret < 0)
+    {
+        return -1;
+    }
+    if (pfd.revents & POLLIN)
+    {
+        return recv(socket_fd, buffer, sizeof(buffer), 0);
+    }
+
+    return -1;
+}
+inline ssize_t nonblocking_send(int socket_fd, const void *s, unsigned int size)
+{
+    struct pollfd pfd;
+    pfd.fd = (socket_fd);
+    pfd.events = POLLOUT;
+
+
+    int ret = poll(&pfd, 1, 200);  // 0.2 second timeout
+    if (ret < 0)
+    {
+        return -1;
+    }
+    if (pfd.revents & POLLOUT)
+    {
+        return send(socket_fd, s, size, 0);
+    }
+
+    return (-1);
+}
+
+inline ssize_t nonblocking_write(std::string file_path, const void *s, unsigned int size)
+{
+    int socket_fd = open(file_path.c_str(), O_WRONLY | O_NONBLOCK | O_CREAT | O_APPEND,0644);
+    if (socket_fd < 0)
+        return -1;  // Can't open file
+    struct pollfd pfd;
+    pfd.fd = (socket_fd);
+    pfd.events = POLLOUT;
+
+    int ret = poll(&pfd, 1, 200);  // 0.2 second timeout
+    if (ret < 0)
+    {
+        return -1;
+    }
+    if (pfd.revents & POLLOUT)
+    {
+        ssize_t q = write(socket_fd, s, size);
+        close(socket_fd);
+        return(q);
+    }
+    return (-1);
+}
+
 
 inline std::string extract_field_path(const std::string& buf, const std::string& field)
 {
@@ -101,39 +258,50 @@ inline char** buildEnvp(std::map<std::string, std::string>& env)
     envp[i] = NULL;
     return envp;
 }
-inline bool handle_client(int client_socket,  ServerConfig &serv)
+#define MAX_HEADER_SIZE 8192  // 8 KB
+inline bool ULTIMATEFUCKERY(int client_socket,  ServerConfig &serv)
 {
     char buffer[2048];
-    ssize_t bytes_received = recv(client_socket, buffer, sizeof(buffer), 0);
-    // std::cerr<<"BUFFER:\n"<<buffer<<"\n|ENDOFBUFFER"<<std::endl;
-
-    if (bytes_received < 0)
+    std::string chunky="", response;
+    ssize_t 
+        totalrec=0,
+        bytes_received = 0;
+    bool joe = false;
+    do
     {
-        if (errno == EAGAIN || errno == EWOULDBLOCK)
+        if(!joe)
+            bytes_received = recv(client_socket, buffer, sizeof(buffer), 0);
+        else
         {
-            std::cerr<<"HANDLE clientsocket pollin: "<<client_socket<<"\n";
-            return false;
+            joe=true;    
+            bytes_received = nonblocking_recv(client_socket, buffer, sizeof(buffer));
         }
-        std::cerr << "\033[31m[x] recv() error on client " << client_socket << ": " << strerror(errno) << "\033[0m\n";
-        return true; // done with this socket (error, cleanup)
-    }
-    else if (bytes_received == 0)
-    {
-        std::cerr << "\033[33m[~] Client disconnected: " << client_socket << "\033[0m\n";
-        return true;
-    }
+
+        totalrec += bytes_received;
+        if (bytes_received < 0)
+        {
+            std::cerr << "\033[31m[x] recv() error on client " << client_socket << ": " << strerror(errno) << "\033[0m\n";
+            return true; // done with this socket (error, cleanup)
+        }
+        else if (bytes_received == 0)
+        {
+            std::cerr << "\033[33m[~] Client disconnected: " << client_socket << "\033[0m\n";
+            return true;
+        }
+        chunky.append(buffer,bytes_received);
+    } while (chunky.find("\r\n\r\n") == std::string::npos);
+    
 
     // log  received HTTP request
-    Request R(buffer, serv, client_socket, bytes_received);
+    Request R(buffer, serv, client_socket, totalrec);
 
-    std::string response = R._get_ReqContent();
+    response = R._get_ReqContent();
     size_t sent=0, total=0;
     while (total <response.size() && sent >=0)
     {
-        sent = send(client_socket, response.data() + total, response.size() - total, 0);
-        total+=sent;
+        sent = nonblocking_send(client_socket, response.data() + total, response.size() - total);
+        total += sent;
     }
-    // std::cerr<<"req:|"<<response.data()<<"|r keep:"<<R.keepalive<<std::endl;
     if (sent < 0)
     {
         std::cerr << "\033[31m[x] send() failed: " << strerror(errno) << "\033[0m\n";
@@ -146,16 +314,6 @@ inline bool handle_client(int client_socket,  ServerConfig &serv)
     return false;
 }
 
-// template <typename K, typename V>
-// bool contientValeur(const std::map<K, V>& maMap, const V& valeurRecherchee) {
-//     typename std::map<K, V>::const_iterator it;
-//     for (it = maMap.begin(); it != maMap.end(); ++it) {
-//         if (it->second == valeurRecherchee) {
-//             return true;
-//         }
-//     }
-//     return false;
-// }
 // - exec CGI script in a fork()
 // - returns CGI stdout in a std::str
 inline std::string executeCGI(const std::string& scriptPath, const std::string& method, const std::string& body, std::map<std::string, std::string> env)
@@ -196,18 +354,13 @@ inline std::string executeCGI(const std::string& scriptPath, const std::string& 
         if (method == "POST" && !body.empty())
             write(pipe_in[1], body.c_str(), body.size());
         close(pipe_in[1]);
-        char buffer[4096];
-        std::string output;
-        ssize_t r = 0;
-        int status;
-        fcntl(pipe_out[0], F_SETFL, O_NONBLOCK);  // Make pipe non-blocking
-        while(read(pipe_out[0], buffer, sizeof(buffer)) > 0)
-            output.append(buffer, r);
-        usleep(100000 * 5); // sleep 100ms
-        kill(pid, SIGINT);
-        waitpid(pid, &status, WNOHANG);
-        close(pipe_out[0]);
-        return output;
+ 
+        fcntl(pipe_out[0], F_SETFL, O_NONBLOCK);  
+        std::string ah= nonblocking_readcgi("", pipe_out[0],pid);
+        // kill(pid, SIGINT);
+        // waitpid(pid, &status, 0);
+        // close(pipe_out[1]);
+        return ah;
     }
 }
 

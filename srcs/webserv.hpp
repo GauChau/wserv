@@ -14,6 +14,7 @@
 #include <poll.h>
 #include <stdexcept>  // for std::invalid_argument
 #include <vector>
+#include <list>
 #include <map>
 #include <stack>
 #include <sstream>
@@ -24,6 +25,7 @@
 #include <fcntl.h>
 #include <set>
 #include <sys/wait.h>
+
 #define PORT 8080
 #define BACKLOG 10
 #define MAX_EVENTS 10
@@ -90,6 +92,7 @@ struct ServerConfig
     std::map<std::string,int> user_socket;
 };
 
+class client;
 class Webserv
 {
     private:
@@ -100,6 +103,7 @@ class Webserv
         void init(void);
         void start(void);
         bool parseConfigFile(const std::string& filename);
+        
 };
 
 #endif

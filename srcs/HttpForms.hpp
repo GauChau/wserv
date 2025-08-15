@@ -38,8 +38,6 @@ class HttpForms
 		~HttpForms();
 
 		//method
-		void _sendclose(void);
-		void _send(void);
 		void _setcodes();
 
 		// Operators

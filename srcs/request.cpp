@@ -4,23 +4,54 @@
 
 
 Request::~Request()
-{ }
+{ std::cout<<"REQUEST DESTROYED:";}
 
-Request::Request(char *raw, const ServerConfig &servr, int socket, ssize_t bytes_received)
-    : _socket(socket),_server(servr),  _bytes_rec(bytes_received)
+void Request::readRequest()
 {
-    this->r_header.append(raw, this->_bytes_rec);
-    std::istringstream iss(raw);
+	std::cerr<<" read ";
+	char buffer[4096];
+	this->_bytes_rec = recv(this->_socket, buffer, sizeof(buffer),0);
+	if (this->_bytes_rec > 0)
+	{
+		this->_datarec.append(buffer, this->_bytes_rec);
+		this->_totalrec+=this->_bytes_rec;
+
+	}
+	else if (this->_bytes_rec == 0)
+	{
+		this->_request_status = EXECUTING;
+	}
+	std::cerr<<" readDONE ";
+}
+
+void Request::sendResponse()
+{
+	ssize_t sent = 0;
+
+	sent = send(this->_socket, this->_ReqContent.data() + this->_totalsent, this->_ReqContent.size() - this->_totalsent, 0);
+	this->_totalsent += sent;
+    
+    if (sent < 0)
+    {
+        std::cerr << "\033[31m[x] send() failed: " << strerror(errno) << "\033[0m\n";
+        this->_request_status = SENDERROR;
+    }
+	else if(_totalsent >= this->_ReqContent.size())
+	{
+		this->_request_status = DONE;
+	}
+}
+void Request::requestParser()
+{
+	this->r_header.append(this->_datarec.data(), this->_totalrec);
+    std::istringstream iss(this->_datarec);
     std::string buffer;
     iss >> this->r_method >> this->r_location >> this->r_version;
 	std::string::size_type pos = this->r_header.find("\r\n\r\n",0);
-
 	if (pos != std::string::npos)
 	{
-		this->_bytes_rec -= pos + 4;
-		std::string body;
-		body.append(raw+pos+4, this->_bytes_rec);
-		this->r_body = body;
+		this->_totalrec -= pos + 4;
+		this->r_body.append(this->_datarec.data()+pos+4, this->_totalrec);
 
 	}
 	std::istringstream iss3(this->r_header.substr(0,pos));
@@ -34,6 +65,7 @@ Request::Request(char *raw, const ServerConfig &servr, int socket, ssize_t bytes
 			if(this->http_params.find(buffer)!= this->http_params.end())
 			{
 				HttpForms Badrequest(this->_socket, 400, 0, "","",this->_ReqContent);
+				this->_request_status = WRITING;
 				return ;
 			}
             key = buffer;
@@ -51,8 +83,69 @@ Request::Request(char *raw, const ServerConfig &servr, int socket, ssize_t bytes
 		else
 			this->keepalive = false;
 	}
-    check_allowed_methods(servr);
+    check_allowed_methods(this->_server);
 }
+
+int Request::checkPostDataOk()
+{
+	//CHECKS IF ALL DATA IS RECEIVED OR IF READING AGAIN IS NECESSARY
+	if (this->_totalrec < this->_contlen)
+	{
+		this->_request_status = READINGDATA;
+	}
+	else //All data is received, executing post request
+	{
+		this->_request_status = EXECUTING;
+	}
+}
+
+int Request::checkHeaderCompletion()
+{
+	std::cerr<<" CHECKHEADER ";
+	std::string::size_type pos = this->_datarec.find("\r\n\r\n",0);
+	if (pos != std::string::npos) //HEADER COMPLETE, PARSE IT AND CHOOSE STATE ACCORDINGLY
+	{
+		this->requestParser();
+		if(this->r_method == "POST")//CHECKS IF ALL DATA IS RECEIVED OR IF READING AGAIN IS NECESSARY
+			checkPostDataOk();
+		else//Method is get or delete, so no content. execute the request
+		{
+			this->_request_status = EXECUTING;
+		}
+		return true;
+	}
+	else //header incomplete
+	{
+		this->_request_status = READINGHEADER;
+		return false;
+	}
+}
+
+Request::Request(const ServerConfig &serv, int socket, int status): _socket(socket),_server(serv)
+{
+	this->_totalrec = 0;
+	this->_totalsent = 0;
+	this->_request_status = status;
+	this->_datarec = "";
+	std::cerr<<"\n REQUEST: ";
+	this->readRequest();
+
+	//CHECKS IF HEADER IS COMPLETE
+	checkHeaderCompletion();//header complete
+
+	if(this->_request_status == EXECUTING)
+	{
+		this->execute(this->exec_code);
+		
+	}
+	else
+		return ;
+	
+
+
+}
+
+
 
 
 
@@ -72,31 +165,34 @@ void Request::check_allowed_methods(const ServerConfig &server)
 					this->location_filename = this->r_location;
 					this->location_filename.erase(0, this->_loc.path.size());
 					// if (this->_loc.upload_store.size() >= 1)
+				}
 					// 	this->location_filename.insert(0, this->_loc.upload_store.substr(1));
 					this->location_filename.insert(0, this->_loc.root);
-				}
 				this->authorized = true;
-				this->execute(""); // <--- then execute it
+				this->exec_code = ""; // <--- then execute it
+				this->_request_status = WRITING;
 				return ;
 			}
 		}
 		// 405
 		if(location_target.allowed_methods.size() == 0)
-			this->execute(""); // <--- then execute it
+			this->exec_code = ""; // <--- then execute it
 		else
-			this->execute("405"); // <--- then execute it
+			this->exec_code = "405"; // <--- then execute it
+		// this->_request_status = WRITING;
 		return ;
 	}
-	this->execute("404"); // <--- then execute it
+	this->exec_code = "404"; // <--- then execute it
 }
 
 
 void Request::execute(std::string s = "null")
 {
-	if(s == "405")
+	std::cerr<<" EXEC ";
+	if(this->exec_code == "405")
 	{
 		const std::string&
-				body = readFile("./www/errors/405.html"),
+				body = nonblocking_read("./www/errors/405.html"),
 				contentType = "text/html";
 		std::string bodi = body;
 		bodi += "<h2>" + this->_loc.root + " only handles:</h2>";
@@ -110,6 +206,7 @@ void Request::execute(std::string s = "null")
 		HttpForms notallowed(this->_socket,405,this->keepalive,contentType,bodi,this->_ReqContent);
 	}else
 	{
+		// std::cout<<this->_bytes_rec << " vs " << this->_contlen << " ret: "<< this->ret<<std::endl;
 		if (this->r_method == "GET")
 			this->Get();
 		else if (this->r_method == "POST")
@@ -117,6 +214,7 @@ void Request::execute(std::string s = "null")
 		else if (this->r_method == "DELETE")
 			this->Delete();
 	}
+	std::cerr<<" AFTER EXEC ";
 }
 
 
@@ -150,9 +248,8 @@ void	Request::writeData()
 					safe_name = sanitize_filename(this->file.fname),
 					full_path = this->_loc.upload_store + "/" + safe_name;
 			this->file.name = full_path;
-			std::ofstream outFile(full_path.c_str(), std::ios::trunc | std::ios::binary);
-			if (!outFile)
-				throw std::ofstream::failure("aFailed to open file");
+			int socket_fd = open(full_path.c_str(), O_WRONLY | O_NONBLOCK | O_CREAT | O_TRUNC,0644);
+			close(socket_fd);
 		}
 		else if (parsestate && this->r_boundary=="void")
 		{
@@ -170,85 +267,33 @@ void	Request::writeData()
 					safe_name = sanitize_filename(this->file.fname),
 					full_path = this->_loc.upload_store + "/" + safe_name;
 			this->file.name = full_path;
-			std::ofstream outFile(full_path.c_str(), std::ios::trunc | std::ios::binary);
-			if (!outFile)
-				throw std::ofstream::failure("aFailed to open file");
-			outFile << this->r_body;
+			nonblocking_write(full_path, this->r_body.data(), this->r_body.size());
 			break;
 		}
 		else
 		{
 			std::string& filename = this->file.name;
 			const std::string& content = buf+'\n';
-			std::ofstream outFile(filename.c_str(),std::ios::app | std::ios::binary);  // Creates the file if it doesn't exist
-			if (!outFile)
-				throw std::ofstream::failure("bFailed to open file");
-			outFile << content;
+			nonblocking_write(filename.c_str(), content.data(), content.size());
 		}
 
 	}
 }
 
-
-void Request::Post()
+void Request::Post_data_write()
 {
-	// handle-boundary
-    if (this->http_params.find("Content-Type")!= this->http_params.end())
-	{
-		std::string::size_type pos = this->http_params.find("Content-Type")->second.find("boundary=");
-		if (pos != std::string::npos)
-		{
-			this->r_boundary = this->http_params.find("Content-Type")->second.substr(pos+9);
-			if (*this->r_boundary.rbegin() == '\r')
-				this->r_boundary.resize(this->r_boundary.size() - 1);
-			this->r_boundary = "--" + this->r_boundary;
-			if (*this->r_boundary.rbegin() == ' ')
-				this->r_boundary.resize(this->r_boundary.size() - 1);
-		}
-		else
-			this->r_boundary = "void";
-    }
-	else
-		this->r_boundary = "void";
+	this->_request_status = WRITING;
 
-	// data-length
-	ssize_t  content_length = 0;
-	if (this->http_params.find("Content-Length") != this->http_params.end())
-	{
-		content_length = atol(this->http_params["Content-Length"].c_str());
-		if (content_length > this->_server.client_max_body_size * 1024 * 1024) // 10 MB limit
-		{
-			HttpForms toolarge(this->_socket, 413, false, "", "Payload Toolarge", this->_ReqContent);
-			return ;
-		}
-	}
-
-	char buffer[2048];
-	while (this->_bytes_rec < content_length)
-	{
-		ssize_t ret = recv(this->_socket, buffer, sizeof(buffer), 0);
-		if (ret == 0)
-			break;
-		if (ret < 0)
-		{
-			if (errno == EINTR || errno == EAGAIN || errno == EWOULDBLOCK)
-				continue; // retry the recv
-			else {
-				std::cerr << "\033[31m [x] post fatal recv err socket: " << this->_socket << " (" << strerror(errno) << ")\033[0m\n";
-				HttpForms ServError(this->_socket, 500,this->keepalive,"text/plain","Failed to receive POST data.\r\n",this->_ReqContent);
-				return;
-			}
-		}
-		this->ret = ret;
-		this->r_body.append(buffer, ret);
-		this->_bytes_rec += ret;
-	}
 	try
 	{
 		if(this->location_filename.size()> this->_loc.root.size())
+		{
 			HttpForms notok(this->_socket, 404,this->keepalive,"","",this->_ReqContent);
+			this->_request_status = WRITING;
+		}
 		else
 		{
+			this->_request_status = WRITING;
 			this->writeData();
 			HttpForms ok(this->_socket, 200,this->keepalive,"","",this->_ReqContent);
 			std::cout << "\033[32m[✓] POST request handled successfully!\033[0m" << std::endl;
@@ -256,9 +301,90 @@ void Request::Post()
 	}
 	catch(const std::ofstream::failure& e)
 	{
+		this->_request_status = WRITING;
 		HttpForms forbid(this->_socket, 403, this->keepalive, "", "", this->_ReqContent);
 		std::cerr << e.what() << '\n';
 	}
+}
+
+void Request::Post_data_receive()
+{
+	char buffer[2048];
+	
+		//ssize_t ret = recv(this->_socket, buffer, sizeof(buffer), 0);
+	ssize_t ret = nonblocking_recv(this->_socket, buffer, sizeof(buffer));
+	if (ret == 0)
+	{
+		this->_request_status = EXECUTING;
+		// this->Post_data_write();
+	}
+	else if (ret < 0)
+	{
+			std::cerr << "\033[31m [x] post fatal recv err socket: " << this->_socket << " (" << strerror(errno) << ")\033[0m\n";
+			HttpForms ServError(this->_socket, 500,this->keepalive,"text/plain","Failed to receive POST data.\r\n",this->_ReqContent);
+			this->_request_status = WRITING;
+			return;
+	}
+	else
+	{
+		this->ret = ret;
+		this->r_body.append(buffer, ret);
+		this->_bytes_rec += ret;
+	}
+
+	if (this->_bytes_rec < this->_contlen || this->_request_status == EXECUTING)
+	{
+		this->_request_status = READINGPOSTDATA;
+		return ;
+	}
+	else
+	{
+		this->Post_data_write();
+
+	}
+}
+void Request::Post()
+{
+	if (this->_request_status == READINGDATA)
+	// handle-boundary
+	{
+		if (this->http_params.find("Content-Type")!= this->http_params.end())
+		{
+			std::string::size_type pos = this->http_params.find("Content-Type")->second.find("boundary=");
+			if (pos != std::string::npos)
+			{
+				this->r_boundary = this->http_params.find("Content-Type")->second.substr(pos+9);
+				if (*this->r_boundary.rbegin() == '\r')
+					this->r_boundary.resize(this->r_boundary.size() - 1);
+				this->r_boundary = "--" + this->r_boundary;
+				if (*this->r_boundary.rbegin() == ' ')
+					this->r_boundary.resize(this->r_boundary.size() - 1);
+			}
+			else
+				this->r_boundary = "void";
+		}
+		else
+			this->r_boundary = "void";
+
+		if (this->http_params.find("Content-Length") != this->http_params.end())
+		{
+			this->_contlen = atol(this->http_params["Content-Length"].c_str());
+			if (this->_contlen > this->_server.client_max_body_size * 1024 * 1024) // 10 MB limit
+			{
+				HttpForms toolarge(this->_socket, 413, false, "", "Payload Toolarge", this->_ReqContent);
+				this->_request_status = WRITING;
+				return ;
+			}
+		}
+		this->_request_status = READINGPOSTDATA;
+	}
+	else if (this->_request_status == READINGPOSTDATA)
+	{
+		this->Post_data_receive();
+	}
+
+	
+
 }
 
 
@@ -267,37 +393,25 @@ void Request::Get()
 {
     std::string full_path = this->_loc.root;
     std::string file_path;
+	this->_request_status = WRITING;
 
     struct stat st;
+
+	std::cerr<<" GETMETH_status: " << this->_request_status<<"";
 	if (stat(full_path.c_str(), &st) == 0)
     {
-		if (S_ISDIR(st.st_mode) && (!this->_loc.index.empty() 
-		|| ((&(this->_loc.cgi_extension) != NULL && !this->_loc.cgi_extension.empty())) ))
+		if (S_ISDIR(st.st_mode) && (!this->_loc.index.empty() ||
+		((&(this->_loc.cgi_extension) != NULL && !this->_loc.cgi_extension.empty())) ))
         {
 			file_path = full_path + "/" + this->_loc.index;
-			// if has someth after loc (potential valid file to GET)
-			if(this->location_filename.size() > this->_loc.root.size())
+			if(this->location_filename.size()> this->_loc.root.size())
 			{
-				// std::string::size_type pos = this->location_filename.rfind('/');
-				// if (pos != std::string::npos && this->_loc.upload_store.size() >= 1)
-				// 	this->location_filename.insert(pos, this->_loc.upload_store.substr(1));
-				// std::string rez = "..";
-				// pos = this->location_filename.rfind('/');
-				// for (std::string::size_type i = 0; i < this->location_filename.length(); ++i)
-				// 	if (this->location_filename[i] != '.'|| (i > pos))
-				// 		rez += this->location_filename[i];
-				// this->location_filename = (rez);
-				std::string::size_type p = this->location_filename.rfind('/');
-				this->location_filename = this->location_filename.substr(p); // Skip the '/'
-				this->location_filename.insert(0, this->_loc.upload_store);
-				std::cout << "'"<< this->location_filename << "'" << std::endl;
 				file_path = this->location_filename;
 				if (is_directory(file_path.c_str()))
 					file_path = "[AUTOINDEX]";
 				else
 				{
 					std::ifstream file(file_path.c_str());
-					std::cerr << "err: openning: " << file_path << std::endl;
 					if(!file.is_open())
 						file_path = "[404]";
 				}
@@ -338,7 +452,7 @@ void Request::Get()
 			closedir(dir);
 		}
 
-		std::string body = readFile("./www/errors/autoindex.html");
+		std::string body = nonblocking_read("./www/errors/autoindex.html");
 		size_t pos = body.find("<!--CONTENT-->");
 		if (pos != std::string::npos) {
 			body.replace(pos, std::string("<!--CONTENT-->").length(), listing.str());
@@ -360,7 +474,7 @@ void Request::Get()
 			}
 		}
 		const std::string&
-				body = readFile(path_404),
+				body = nonblocking_read(path_404),
 				contentType = "text/html";
 		HttpForms notfound(this->_socket, 404,this->keepalive,contentType, body,this->_ReqContent);
 	}
@@ -379,7 +493,7 @@ void Request::Get()
 			}
 		}
 		const std::string&
-				body = readFile(path_403),
+				body = nonblocking_read(path_403),
 				contentType = "text/html";
 		HttpForms forbid(this->_socket, 403,this->keepalive, contentType, body,this->_ReqContent);
 	}
@@ -399,7 +513,7 @@ void Request::Get()
 		if(&(this->_loc.cgi_extension) == NULL || this->_loc.cgi_extension.empty())
 		{
 			const std::string&
-				body = readFile(file_path);
+				body = nonblocking_read(file_path);
 				std::string contentType=file_path.substr(file_path.rfind(".")+1);
 			HttpForms ok(this->_socket, 200,this->keepalive, contentType, body,this->_ReqContent);
 		}
@@ -511,3 +625,55 @@ std::string Request::_get_ReqContent()
 	return this->_ReqContent;
 }
 
+
+
+
+Request::Request(std::string raw, const ServerConfig &servr, int socket, ssize_t bytes_received)
+: _socket(socket),_server(servr),  _bytes_rec(bytes_received)
+{
+	this->_contlen = 0;
+    this->r_header.append(raw.data(), this->_bytes_rec);
+    std::istringstream iss(raw);
+    std::string buffer;
+    iss >> this->r_method >> this->r_location >> this->r_version;
+	std::string::size_type pos = this->r_header.find("\r\n\r\n",0);
+	if (pos != std::string::npos)
+	{
+		this->_bytes_rec -= pos + 4;
+		std::string body;
+		body.append(raw.data()+pos+4, this->_bytes_rec);
+		this->r_body = body;
+
+	}
+	std::istringstream iss3(this->r_header.substr(0,pos));
+    while (getline(iss3, buffer))
+	{
+        if (buffer.size() > 1)
+		{
+            std::string key, value;
+            std::istringstream iss2(buffer);
+            getline(iss2, buffer, ':');
+			if(this->http_params.find(buffer)!= this->http_params.end())
+			{
+				HttpForms Badrequest(this->_socket, 400, 0, "","",this->_ReqContent);
+				this->_request_status = WRITING;
+				return ;
+			}
+            key = buffer;
+            getline(iss2, buffer);
+            value = buffer;
+            this->http_params.insert(std::make_pair(key, value));
+        }
+    }
+	if(this->http_params.find("Connection")!=this->http_params.end())
+	{
+		std::string connec;
+		connec = this->http_params["Connection"];
+		if (connec.find("keep-alive") !=std::string::npos)
+			this->keepalive = true;
+		else
+			this->keepalive = false;
+		std::cout<<"Keep:"<<this->keepalive<<std::endl;
+	}
+    check_allowed_methods(servr);
+}
