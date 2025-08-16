@@ -43,14 +43,13 @@
 
 class HttpForms;
 class Request;
-
-
+class CGIHandler;
 
 class client
 {
 	public:
 		client(){};
-		client( pollfd& pfdin, ServerConfig *server):serv(server)
+		client( pollfd& pfdin, ServerConfig *server):serv(server),cgi_handler(NULL)
 		{
 			//  if (!pfd)
 			// {
@@ -63,7 +62,8 @@ class client
 			this->fd = pfdin.fd;
 			this->_request = NULL;
 			std::cerr << "1, "<< pfdin.fd;
-			bool keepalive = false;
+			bool keepalive = true;
+			cgi_fd=-1;
 		};
 
 		client& operator=(const client& assign)
@@ -77,18 +77,24 @@ class client
 			if(this->_request != NULL)
 				delete this->_request;
 			std::cerr<<"client destroyed:"<<this->fd<<std::endl;
+			if (cgi_handler)
+				delete cgi_handler;
 		};
 
 		HttpForms *_formulaire;
 		Request	*_request;
 		
 		//METHODS
+		void tryLaunchCGI();
 		bool handle_jesus(pollfd& pfdin);
-		void test(pollfd& pfdin);
 		bool answerClient(pollfd& pfdin);
 		int getStatus()const{return status;};
-		int status;
-		bool keepalive;
+		int getFd()const{return fd;};
+		int status, cgi_fd;
+		bool keepalive = false, cgiresgitered=false;
+		std::string cgi_buffer;
+		CGIHandler* cgi_handler;
+
 		// std::string executeCGI(const std::string& scriptPath, const std::string& method, const std::string& body, std::map<std::string, std::string> env);
 		
 		private:

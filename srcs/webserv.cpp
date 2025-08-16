@@ -3,6 +3,7 @@
 #include "HttpForms.hpp"
 #include "utils.hpp"
 #include "client.hpp"
+#include "cgi_handler.hpp"
 
 Webserv::Webserv(void)
 {
@@ -134,10 +135,43 @@ void Webserv::start(void)
     }
 
     std::cout << "\033[92m ===== STARTED " << poll_fds.size() << " SERVERZ ===== \033[0m" << std::endl;
-    std::signal(SIGINT, handle_sigint);     
+    std::signal(SIGINT, handle_sigint);  
+       
     while (!g_terminate)
     {
-        int ret = poll(poll_fds.data(), poll_fds.size(), 100); // 100ms timeoutt
+        // for (std::map<int, client*>::iterator it = clientlist.begin(); it != clientlist.end(); ++it)
+        // {
+        //     client* client_ptr = it->second;
+        //     if (client_ptr->cgi_fd > -1 && client_ptr->cgiresgitered == false)
+        //     {
+        //         // std::cerr<<" register pollcgi_fd n: "<<client_ptr->cgi_fd ;
+        //         struct pollfd cgi_pfd;
+        //         cgi_pfd.fd = client_ptr->cgi_fd;
+        //         cgi_pfd.events = POLLIN;
+        //         cgi_pfd.revents = 0;
+        //         poll_fds.push_back(cgi_pfd);
+        //         // client_ptr->cgi_fd = -2;
+        //         client_ptr->cgiresgitered = true;
+        //     }
+        // }
+        
+        for (std::map<int, client*>::iterator it = clientlist.begin(); it != clientlist.end(); ++it)
+        {
+            client* client_ptr = it->second;
+            if (client_ptr->cgi_handler && client_ptr->cgi_fd > -1 && client_ptr->cgi_handler->registered == 0)
+            {
+                client_ptr->cgi_handler->registered = 1;
+                // std::cerr<<" register pollcgi_fd n: "<<client_ptr->cgi_fd ;
+                struct pollfd cgi_pfd;
+                cgi_pfd.fd = client_ptr->cgi_fd;
+                cgi_pfd.events = POLLIN;
+                cgi_pfd.revents = 0;
+                poll_fds.push_back(cgi_pfd);
+            }
+        }
+        int ret = poll(poll_fds.data(), poll_fds.size(), 500); // 100ms timeoutt
+        // std::cerr<< "SORS DU REGISTRE ";
+       
 
         if (ret < 0)
         {
@@ -156,20 +190,21 @@ void Webserv::start(void)
         {
             struct pollfd& pfd = poll_fds[i];
             
-
+           
+            
             if ((pfd.revents & POLLOUT) && pfd.events == POLLOUT && clientlist.count(pfd.fd))
             {
-                // std::cerr<<" IN POLLOUT LOOOP: ";
                 if (clientlist[pfd.fd]->getStatus() == WRITING)
                 {
                     if(!clientlist[pfd.fd]->answerClient(pfd))
+                    {
                         continue ;
+                    }
                     
-                    
-                    std::cerr<<"TREATED, NOW: "<<pfd.fd<<" sock has revents: "<<pfd.revents << "and event are: "<<pfd.events<<std::endl;
+                    // std::cerr<<"TREATED, NOW: "<<pfd.fd<<" sock has revents: "<<pfd.revents << "and event are: "<<pfd.events<<std::endl;
                     if (clientlist[pfd.fd]->keepalive == false)
                     {
-                        std::cerr<<"delete socket n:"<<pfd.fd<<std::endl;
+                        // std::cerr<<"delete socket n:"<<pfd.fd<<std::endl;
                         close(pfd.fd);
                         fds_to_remove.push_back(pfd.fd);
                         delete clientlist[pfd.fd];
@@ -179,9 +214,37 @@ void Webserv::start(void)
                 continue ;
                 
             }
-
-            if (!(pfd.revents & POLLIN))//| POLLOUT)))
-                continue;
+            for (std::map<int, client*>::iterator it = clientlist.begin(); it != clientlist.end(); ++it)
+            {
+                client* client_ptr = it->second;
+                // std::cerr<<", revin" << (pfd.revents & POLLIN)<<", revout"<<pfd.fd<<std::endl;
+                if (client_ptr->cgi_handler && client_ptr->cgi_fd == pfd.fd )
+                {
+                    // std::cerr<<" AAAreadcgiout n: c" <<client_ptr->cgi_fd<<", pfd" << pfd.fd<<" revent:"<< pfd.revents<<std::endl;
+                    if (pfd.revents & (POLLIN | POLLHUP))
+                    {
+                        /* code */
+                        
+                        // std::cerr<<" BBBreadcgiout n: c" <<client_ptr->cgi_fd<<", pfd" << pfd.fd<< std::endl;
+                        // std::cerr<<" readcgiout n: "<<client_ptr->_request->_get_ReqContent() << std::endl;
+                        bool finished = client_ptr->cgi_handler->readOutput();
+                        if (finished) {
+                            std::cerr<< "Parser et envoyer la réponse HTTP";
+                            client_ptr->_request->_ReqContent = client_ptr->cgi_handler->getBuffer();
+                            // ...parse headers/body comme avant...
+                            // ...envoie la réponse via HttpForms...
+                            fds_to_remove.push_back(pfd.fd);
+                            client_ptr->status = WRITING;
+                            delete client_ptr->cgi_handler;
+                            client_ptr->cgi_handler = NULL;
+                        }
+                    }
+                }
+            }
+            std::cerr<<" yeah FUCKTHIS "<<pfd.revents << " on pfd" << pfd.fd;
+            if (!(pfd.revents & (POLLIN | POLLOUT | POLLHUP)))
+            continue;
+            
             if (server_fds.count(pfd.fd))
             {
                 // std::cerr<<pfd.fd<<" sock has revents: "<<pfd.revents << "and event are: "<<pfd.events<<std::endl;
@@ -195,8 +258,6 @@ void Webserv::start(void)
                 
                 if (client_fd < 0)
                     continue;
-                
-                std::cerr<<"\ncreate socket n: "<<client_fd;
 
                 // socket timeout (optional, useful)
                 struct timeval timeout = {10, 0}; // 10 seconds
@@ -216,35 +277,23 @@ void Webserv::start(void)
                 client_fd_to_server[client_fd] = serv;
                 clientlist[client_fd] = new client(client_pfd, serv);
             }
-            else
+            else 
             {
-                // std::cerr<<pfd.fd<<" sock has revents: "<<pfd.revents << "and event are: "<<pfd.events<<std::endl;
-                // std::cout << "touching jesus";
-                 ServerConfig* serv = client_fd_to_server[pfd.fd];
+                ServerConfig* serv = client_fd_to_server[pfd.fd];
                 if (!serv)
                     continue;
-                // std::cerr<<" JESUS STATUS: "<<clientlist[pfd.fd]->getStatus();
+                std::cerr<<" PASSED "<<pfd.revents << " on pfd" << pfd.fd;
                 clientlist[pfd.fd]->handle_jesus(pfd);
-                // if (clientlist[pfd.fd]->keepalive == false)
-                // {
-                //     std::cerr<<"delete socket n:"<<pfd.fd<<std::endl;
-                //     close(pfd.fd);
-                //     fds_to_remove.push_back(pfd.fd);
-                //     delete clientlist[pfd.fd];
-                //     clientlist.erase(pfd.fd);
-                // }
-               
-                
             }
         }
 
-        // clean-up client sockets
+
         for (size_t j = 0; j < fds_to_remove.size(); ++j)
         {
             int fd = fds_to_remove[j];
 
             if (server_fds.count(fd)) continue; // do not remove server sockets
-            std::cerr << "erasing: "<< fd;
+            // std::cerr << "erasing: "<< fd;
             client_fd_to_server.erase(fd);
 
             for (std::vector<struct pollfd>::iterator it = poll_fds.begin(); it != poll_fds.end(); ++it)
@@ -264,4 +313,68 @@ void Webserv::start(void)
     for (std::set<int>::iterator it = server_fds.begin(); it != server_fds.end(); ++it)
         close(*it);
     std::cout << "Server shutdown gracefully.\n";
+}
+
+
+
+
+bool Webserv::handleCGIResponse(client* client_ptr)
+{
+    if (!client_ptr) return false;
+    std::cerr<<" AhandleCGIResponse ";
+
+    char buffer[4096];
+    ssize_t bytes_read = read(client_ptr->cgi_fd, buffer, sizeof(buffer));
+    if (bytes_read > 0)
+    {
+        client_ptr->cgi_buffer.append(buffer, bytes_read);
+        // On attend la fin du CGI (EOF) pour parser et répondre
+        std::cerr<<" APPENDCGI RESP ";
+        return true;
+    }
+    if (bytes_read == 0) // EOF : CGI terminé
+    {
+        std::cerr<<" EOF REACHED ";
+        close(client_ptr->cgi_fd);
+        // client_ptr->cgi_fd = -1;
+
+        // Parser headers/body
+        std::string::size_type header_end = client_ptr->cgi_buffer.find("\r\n\r\n");
+        if (header_end == std::string::npos)
+            header_end = client_ptr->cgi_buffer.find("\n\n");
+        std::string contentType = "text/plain";
+        std::string body;
+        if (header_end != std::string::npos)
+        {
+            std::cerr<<" EOFB ";
+            std::string headers = client_ptr->cgi_buffer.substr(0, header_end);
+            body = client_ptr->cgi_buffer.substr(header_end + 4);
+            std::istringstream headerStream(headers);
+            std::string line;
+            while (std::getline(headerStream, line))
+            {
+                if (line.find("Content-Type:") != std::string::npos)
+                {
+                    contentType = line.substr(line.find(":") + 1);
+                    while (!contentType.empty() && contentType[0] == ' ')
+                        contentType.erase(0, 1);
+                }
+            }
+        }
+        else
+            body = client_ptr->cgi_buffer;
+        std::cerr<<" EOFC ";
+
+        // Envoyer la réponse HTTP
+        HttpForms ok(client_ptr->getFd(), 200, client_ptr->keepalive, contentType, body, client_ptr->_request->_ReqContent);
+        std::cerr<<"client_ptr->_request->_ReqContent: "<<client_ptr->_request->_ReqContent<<std::endl;
+
+
+        client_ptr->status = WRITING;
+        client_ptr->cgi_buffer.clear();
+        return true ;
+    }
+    return false;
+
+    // Si bytes_read < 0 et errno == EAGAIN/EWOULDBLOCK, on attend le prochain poll
 }

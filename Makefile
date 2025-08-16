@@ -1,6 +1,6 @@
 EXEC    = WEBSERV
 SRC     = srcs/webserv.cpp srcs/conf_parser.cpp srcs/main.cpp srcs/request.cpp srcs/HttpForms.cpp \
-srcs/client.cpp
+srcs/client.cpp srcs/cgi_handler.cpp 
 OBJ     = $(SRC:.cpp=.o)
 CC      = c++
 FLAGS   = -Wall -Wextra  -std=c++98 -g

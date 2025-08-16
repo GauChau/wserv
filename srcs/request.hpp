@@ -55,17 +55,24 @@ class Request
       int checkHeaderCompletion();
       void check_allowed_methods(const ServerConfig &serv);
       void execute(std::string s);
+
+
+      int launchCGI();
+
       std::string _get_ReqContent();
-      std::map<std::string,std::string> http_params;
+      std::map<std::string,std::string> http_params, env;
       int _socket;
-      bool authorized,keepalive;
+      bool authorized,keepalive = true;
       std::string& getMethod(){return(this->r_method);};
       std::string& getHeader(){return(this->r_header);};
       std::string& getExecCode(){return(this->exec_code);};
       std::string& getDataRec(){return(this->_datarec);};
+      std::string& getScriptPath() { return scriptPath; }
+      std::string& getRBody() { return r_body; }
       void Post_data_write();
-      int _request_status;
+      int _request_status, iscgi=0;
       size_t _bytes_rec, _contlen, ret, _totalrec, _totalsent;
+       std::string _ReqContent;
     private:
         const ServerConfig &_server;
         LocationConfig _loc;
@@ -73,7 +80,8 @@ class Request
                     r_version, r_boundary,
                     r_body, r_header,
                     location_filename,
-                    connec, exec_code, _datarec;
+                    connec, exec_code, _datarec,
+                    scriptPath;
         file_id file;
         
 
@@ -83,8 +91,8 @@ class Request
         void Get();
         void Delete();
         void writeData();
-        int checkbound(std::istringstream& s);
-        std::string _ReqContent;
+        // int checkbound(std::istringstream& s);
+       
 
 };
 
