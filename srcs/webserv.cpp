@@ -155,32 +155,36 @@ void Webserv::start(void)
         for (size_t i = 0; i < poll_fds.size(); ++i)
         {
             struct pollfd& pfd = poll_fds[i];
-            std::cerr<<pfd.fd<<" sock has revents: "<<pfd.revents << "and event are: "<<pfd.events<<std::endl;
+            
 
-            if ((pfd.revents & POLLOUT) && pfd.events == POLLOUT)
+            if ((pfd.revents & POLLOUT) && pfd.events == POLLOUT && clientlist.count(pfd.fd))
             {
                 // std::cerr<<" IN POLLOUT LOOOP: ";
                 if (clientlist[pfd.fd]->getStatus() == WRITING)
                 {
-                    clientlist[pfd.fd]->answerClient(pfd);
+                    if(!clientlist[pfd.fd]->answerClient(pfd))
+                        continue ;
+                    
+                    
                     std::cerr<<"TREATED, NOW: "<<pfd.fd<<" sock has revents: "<<pfd.revents << "and event are: "<<pfd.events<<std::endl;
-                    // if (clientlist[pfd.fd]->getStatus() == DONE)
-                    // {
-                    //     // std::cerr<<"delete socket n:"<<pfd.fd<<std::endl;
-                    //     close(pfd.fd);
-                    //     fds_to_remove.push_back(pfd.fd);
-                    //     delete clientlist[pfd.fd];
-                    //     clientlist.erase(pfd.fd);
-                    // }
+                    if (clientlist[pfd.fd]->keepalive == false)
+                    {
+                        std::cerr<<"delete socket n:"<<pfd.fd<<std::endl;
+                        close(pfd.fd);
+                        fds_to_remove.push_back(pfd.fd);
+                        delete clientlist[pfd.fd];
+                        clientlist.erase(pfd.fd);
+                    }
                 }
+                continue ;
                 
             }
 
             if (!(pfd.revents & POLLIN))//| POLLOUT)))
                 continue;
-            
             if (server_fds.count(pfd.fd))
             {
+                // std::cerr<<pfd.fd<<" sock has revents: "<<pfd.revents << "and event are: "<<pfd.events<<std::endl;
                 ServerConfig* serv = fd_to_server[pfd.fd];
                 if (!serv)
                 {
@@ -192,7 +196,7 @@ void Webserv::start(void)
                 if (client_fd < 0)
                     continue;
                 
-                std::cerr<<"create socket n:"<<client_fd<<std::endl;
+                std::cerr<<"\ncreate socket n: "<<client_fd;
 
                 // socket timeout (optional, useful)
                 struct timeval timeout = {10, 0}; // 10 seconds
@@ -210,15 +214,25 @@ void Webserv::start(void)
                 client_pfd.revents = 0;
                 poll_fds.push_back(client_pfd);
                 client_fd_to_server[client_fd] = serv;
-                clientlist[client_fd] = new client(client_pfd, serv);                
+                clientlist[client_fd] = new client(client_pfd, serv);
             }
             else
             {
+                // std::cerr<<pfd.fd<<" sock has revents: "<<pfd.revents << "and event are: "<<pfd.events<<std::endl;
+                // std::cout << "touching jesus";
                  ServerConfig* serv = client_fd_to_server[pfd.fd];
                 if (!serv)
                     continue;
-
+                // std::cerr<<" JESUS STATUS: "<<clientlist[pfd.fd]->getStatus();
                 clientlist[pfd.fd]->handle_jesus(pfd);
+                // if (clientlist[pfd.fd]->keepalive == false)
+                // {
+                //     std::cerr<<"delete socket n:"<<pfd.fd<<std::endl;
+                //     close(pfd.fd);
+                //     fds_to_remove.push_back(pfd.fd);
+                //     delete clientlist[pfd.fd];
+                //     clientlist.erase(pfd.fd);
+                // }
                
                 
             }
@@ -230,7 +244,7 @@ void Webserv::start(void)
             int fd = fds_to_remove[j];
 
             if (server_fds.count(fd)) continue; // do not remove server sockets
-
+            std::cerr << "erasing: "<< fd;
             client_fd_to_server.erase(fd);
 
             for (std::vector<struct pollfd>::iterator it = poll_fds.begin(); it != poll_fds.end(); ++it)

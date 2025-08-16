@@ -56,12 +56,14 @@ class client
 			// {
 			// 	std::cerr << "Invalid pollfd pointer in client CONSTRUCTOR" << std::endl;
 			// }
+			std::cerr<<"new client:"<<pfdin.fd<<std::endl;
 			totalrec = 0;
 			data="";
 			status = WAITING;
 			this->fd = pfdin.fd;
 			this->_request = NULL;
 			std::cerr << "1, "<< pfdin.fd;
+			bool keepalive = false;
 		};
 
 		client& operator=(const client& assign)
@@ -70,7 +72,12 @@ class client
 
 
 		};
-		~client(){std::cerr<<"client destroyed:"<<fd<<std::endl;};
+		~client()
+		{
+			if(this->_request != NULL)
+				delete this->_request;
+			std::cerr<<"client destroyed:"<<this->fd<<std::endl;
+		};
 
 		HttpForms *_formulaire;
 		Request	*_request;
@@ -80,14 +87,15 @@ class client
 		void test(pollfd& pfdin);
 		bool answerClient(pollfd& pfdin);
 		int getStatus()const{return status;};
+		int status;
+		bool keepalive;
 		// std::string executeCGI(const std::string& scriptPath, const std::string& method, const std::string& body, std::map<std::string, std::string> env);
 		
 		private:
 			ServerConfig *serv;
-			int fd, status, pollstatus;
+			int fd, pollstatus;
 			std::string data;
 			ssize_t	totalrec;
-			bool keepalive;
 
 
 

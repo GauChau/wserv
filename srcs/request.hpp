@@ -22,6 +22,7 @@
 #include "webserv.hpp"
 #include <dirent.h>
 #include <string>
+#include <iostream>
 
 #define WAITING 0
 #define READING 1
@@ -62,6 +63,7 @@ class Request
       std::string& getHeader(){return(this->r_header);};
       std::string& getExecCode(){return(this->exec_code);};
       std::string& getDataRec(){return(this->_datarec);};
+      void Post_data_write();
       int _request_status;
       size_t _bytes_rec, _contlen, ret, _totalrec, _totalsent;
     private:
@@ -77,7 +79,7 @@ class Request
 
         void Post();
         void Post_data_receive();
-        void Post_data_write();
+        
         void Get();
         void Delete();
         void writeData();

@@ -14,11 +14,13 @@ void Request::readRequest()
 	if (this->_bytes_rec > 0)
 	{
 		this->_datarec.append(buffer, this->_bytes_rec);
+		this->r_body.append(buffer, this->_bytes_rec);
 		this->_totalrec+=this->_bytes_rec;
 
 	}
 	else if (this->_bytes_rec == 0)
 	{
+		std::cerr<<" brec=0 ";
 		this->_request_status = EXECUTING;
 	}
 	std::cerr<<" readDONE ";
@@ -34,7 +36,7 @@ void Request::sendResponse()
     if (sent < 0)
     {
         std::cerr << "\033[31m[x] send() failed: " << strerror(errno) << "\033[0m\n";
-        this->_request_status = SENDERROR;
+        this->_request_status = DONE;
     }
 	else if(_totalsent >= this->_ReqContent.size())
 	{
@@ -51,6 +53,7 @@ void Request::requestParser()
 	if (pos != std::string::npos)
 	{
 		this->_totalrec -= pos + 4;
+		this->r_body.clear();
 		this->r_body.append(this->_datarec.data()+pos+4, this->_totalrec);
 
 	}
@@ -88,15 +91,21 @@ void Request::requestParser()
 
 int Request::checkPostDataOk()
 {
+	std::cerr<<" CHECKPOSTDATA. ";
 	//CHECKS IF ALL DATA IS RECEIVED OR IF READING AGAIN IS NECESSARY
 	if (this->_totalrec < this->_contlen)
 	{
+		std::cerr<<" NEEDMOREDATA rec: "<< this->_totalrec<< " ctlen: "<< this->_contlen ;
 		this->_request_status = READINGDATA;
+		return 0;
 	}
 	else //All data is received, executing post request
 	{
+		std::cerr<<" DATARECED. ";
 		this->_request_status = EXECUTING;
+		return 1;
 	}
+	return 1;
 }
 
 int Request::checkHeaderCompletion()
@@ -105,18 +114,24 @@ int Request::checkHeaderCompletion()
 	std::string::size_type pos = this->_datarec.find("\r\n\r\n",0);
 	if (pos != std::string::npos) //HEADER COMPLETE, PARSE IT AND CHOOSE STATE ACCORDINGLY
 	{
+		std::cerr<<" HEAD DONE. ";
 		this->requestParser();
-		if(this->r_method == "POST")//CHECKS IF ALL DATA IS RECEIVED OR IF READING AGAIN IS NECESSARY
-			checkPostDataOk();
-		else//Method is get or delete, so no content. execute the request
-		{
+		// if(this->r_method == "POST")//CHECKS IF ALL DATA IS RECEIVED OR IF READING AGAIN IS NECESSARY
+		// 	checkPostDataOk();
+		// else//Method is get or delete, so no content. execute the request
+		// {
 			this->_request_status = EXECUTING;
-		}
+		// }
 		return true;
 	}
 	else //header incomplete
 	{
 		this->_request_status = READINGHEADER;
+		if (this->_bytes_rec ==0)
+		{	
+			this->_request_status = WAITING;
+			keepalive == false;
+		}
 		return false;
 	}
 }
@@ -267,14 +282,18 @@ void	Request::writeData()
 					safe_name = sanitize_filename(this->file.fname),
 					full_path = this->_loc.upload_store + "/" + safe_name;
 			this->file.name = full_path;
-			nonblocking_write(full_path, this->r_body.data(), this->r_body.size());
+			// nonblocking_write(full_path, this->r_body.data(), this->r_body.size());
+			std::ofstream outjoe(full_path.c_str(), std::ios::app | std::ios::binary);
+			outjoe << this->r_body;
 			break;
 		}
 		else
 		{
 			std::string& filename = this->file.name;
 			const std::string& content = buf+'\n';
-			nonblocking_write(filename.c_str(), content.data(), content.size());
+			// nonblocking_write(filename.c_str(), content.data(), content.size());
+			std::ofstream outjoe(filename.c_str(), std::ios::app | std::ios::binary);
+			outjoe << content;
 		}
 
 	}
@@ -307,45 +326,9 @@ void Request::Post_data_write()
 	}
 }
 
-void Request::Post_data_receive()
-{
-	char buffer[2048];
-	
-		//ssize_t ret = recv(this->_socket, buffer, sizeof(buffer), 0);
-	ssize_t ret = nonblocking_recv(this->_socket, buffer, sizeof(buffer));
-	if (ret == 0)
-	{
-		this->_request_status = EXECUTING;
-		// this->Post_data_write();
-	}
-	else if (ret < 0)
-	{
-			std::cerr << "\033[31m [x] post fatal recv err socket: " << this->_socket << " (" << strerror(errno) << ")\033[0m\n";
-			HttpForms ServError(this->_socket, 500,this->keepalive,"text/plain","Failed to receive POST data.\r\n",this->_ReqContent);
-			this->_request_status = WRITING;
-			return;
-	}
-	else
-	{
-		this->ret = ret;
-		this->r_body.append(buffer, ret);
-		this->_bytes_rec += ret;
-	}
-
-	if (this->_bytes_rec < this->_contlen || this->_request_status == EXECUTING)
-	{
-		this->_request_status = READINGPOSTDATA;
-		return ;
-	}
-	else
-	{
-		this->Post_data_write();
-
-	}
-}
 void Request::Post()
 {
-	if (this->_request_status == READINGDATA)
+	if (this->_request_status == EXECUTING)
 	// handle-boundary
 	{
 		if (this->http_params.find("Content-Type")!= this->http_params.end())
@@ -376,13 +359,13 @@ void Request::Post()
 				return ;
 			}
 		}
-		this->_request_status = READINGPOSTDATA;
+		if(this->checkPostDataOk())
+		{
+			Post_data_write();
+		}
+		else
+			this->_request_status == READINGDATA;
 	}
-	else if (this->_request_status == READINGPOSTDATA)
-	{
-		this->Post_data_receive();
-	}
-
 	
 
 }
@@ -578,6 +561,7 @@ void Request::Delete()
 {
 	char buf[PATH_MAX];
 	std::string f_path;
+	this->_request_status = WRITING;
 
 	if(this->location_filename.size()>this->_loc.root.size()&& getcwd(buf, sizeof(buf)))
 	{
