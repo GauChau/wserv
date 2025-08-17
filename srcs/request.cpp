@@ -151,8 +151,10 @@ Request::Request(const ServerConfig &serv, int socket, int status): _server(serv
 void Request::check_allowed_methods(const ServerConfig &server)
 {
 	LocationConfig location_target;
+	std::cerr<<"b4 match rloc " <<r_location;
 	if(match_location(this->r_location, server.locations, location_target))
 	{
+		std::cerr<<"\n b4 location_filename: "<<location_filename <<" thisloc"<< _loc.path;
 		this->_loc = location_target;
 		std::vector<std::string>::const_iterator it_meth = location_target.allowed_methods.begin();
 		for(;it_meth != location_target.allowed_methods.end();it_meth++)
@@ -165,8 +167,8 @@ void Request::check_allowed_methods(const ServerConfig &server)
 					this->location_filename.erase(0, this->_loc.path.size());
 					// if (this->_loc.upload_store.size() >= 1)
 				}
-					// 	this->location_filename.insert(0, this->_loc.upload_store.substr(1));
-					this->location_filename.insert(0, this->_loc.root);
+				// 	this->location_filename.insert(0, this->_loc.upload_store.substr(1));
+				this->location_filename.insert(0, this->_loc.root);
 				this->authorized = true;
 				this->exec_code = ""; // <--- then execute it
 				this->_request_status = WRITING;
@@ -174,6 +176,7 @@ void Request::check_allowed_methods(const ServerConfig &server)
 			}
 		}
 		// 405
+		std::cerr<<" } after location_filename: "<<location_filename<<std::endl;
 		if(location_target.allowed_methods.size() == 0)
 			this->exec_code = ""; // <--- then execute it
 		else
@@ -224,7 +227,7 @@ void Request::Get()
 
     struct stat st;
 
-	// std::cerr<<" GETMETH_status: " << this->_request_status<<"";
+	std::cerr<<"111 location_filename: " << location_filename<<" _loc.root "<<_loc.root <<"";
 	if (stat(full_path.c_str(), &st) == 0)
     {
 		//old to version to comply with werror etc
@@ -234,6 +237,7 @@ void Request::Get()
 		if (S_ISDIR(st.st_mode) && (!this->_loc.index.empty() ||
 		((!this->_loc.cgi_extension.empty())) ))
         {
+			std::cerr<<"222 location_filename: " << location_filename<<" _loc.root "<<_loc.root <<"";
 			file_path = full_path + "/" + this->_loc.index;
 			if(this->location_filename.size()> this->_loc.root.size())
 			{
@@ -252,21 +256,26 @@ void Request::Get()
         {
             if (this->_loc.autoindex)
                 file_path = "[AUTOINDEX]";
-            else
-                file_path = "[403]";
-        }
+            else 
+			{
+				std::cerr<<"333 location_filename: " << location_filename<<" _loc.root "<<_loc.root <<"";
+				file_path = "[403]";
+			}
+		}
     }
     else
     {
         file_path = "[404]";
+		std::cerr<<"444 location_filename: " << location_filename<<" _loc.root "<<_loc.root <<"";
     }
 	if(file_path == "[404]")
 		if( this->_loc.redirection.size() > 0)
 			file_path = "[REDIRECTION]";
 
     //  autoindex
-    if (file_path == "[AUTOINDEX]" )
+    if (file_path == "[AUTOINDEX]" && r_location.size() == this->_loc.path.size())
     {
+		std::cerr<<"777 location_filename: " << location_filename<<" _rloc "<<r_location <<"";
 		std::stringstream listing;
 		DIR* dir = opendir(full_path.c_str());
 		if (!dir) {
@@ -278,7 +287,7 @@ void Request::Get()
 				std::string name = entry->d_name;
 				if (name == "." || name == "..")
 					continue;
-				listing << "<li><a href=\"" << name << "\">" << name << "</a></li>\n";
+				listing << "<li><a href=\"" << "http://127.0.0.1:8088//" +name << "\">"<< "" + name << "</a></li>\n";
 			}
 			closedir(dir);
 		}
@@ -288,11 +297,13 @@ void Request::Get()
 		if (pos != std::string::npos) {
 			body.replace(pos, std::string("<!--CONTENT-->").length(), listing.str());
 		}
-		HttpForms notfound(this->_socket,this->keepalive, 200,"text/html", body,this->_ReqContent);
+		// std::cerr<<" body "<< body;
+		HttpForms notfound(this->_socket,200,this->keepalive,"text/html", body,this->_ReqContent);
 	}
 	// 404 no
 	else if (file_path == "[404]")
 	{
+		std::cerr<<"555 location_filename: " << location_filename<<" _loc.root "<<_loc.root <<"";
 		std::string path_404 = "./www/default/404.html";
 		std::vector<std::pair<unsigned int, std::string> >::const_iterator it;
 		it = this->_server.error_pages.begin();
@@ -312,6 +323,7 @@ void Request::Get()
 	// 403 forbidden
 	else if (file_path == "[403]")
 	{
+		std::cerr<<"666 location_filename: " << location_filename<<" _loc.root "<<_loc.root <<"";
 		std::string path_403 = "./www/default/403.html";
 		std::vector<std::pair<unsigned int, std::string> >::const_iterator it;
 		it = this->_server.error_pages.begin();
@@ -340,6 +352,9 @@ void Request::Get()
 	}
 	else
 	{
+		if (file_path == "[AUTOINDEX]")
+			file_path = this->location_filename;
+		std::cerr<<"DEFAULT location_filename: " << location_filename<<" _loc.root "<<_loc.root <<"";
 		// default get
 		// if(&(this->_loc.cgi_extension) == NULL || this->_loc.cgi_extension.empty())
 		if(this->_loc.cgi_extension.empty())
