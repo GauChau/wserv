@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>404 - Page Not Found</title>
+    <style>
+        @keyframes float {
+            0% { transform: translateY(0); }
+            50% { transform: translateY(-8px); }
+            100% { transform: translateY(0); }
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #8e0e00, #e52e71);
+            color: #ffebee;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        .container {
+            text-align: center;
+            animation: float 3s ease-in-out infinite;
+        }
+
+        h1 {
+            font-size: 6rem;
+            margin: 0;
+            color: #ffcdd2;
+            text-shadow: 2px 2px #b71c1c;
+        }
+
+        h2 {
+            color: #ffcccb;
+        }
+
+        h4 {
+            font-size: 1.2rem;
+            color: #f8bbd0;
+            max-width: 600px;
+            margin: 1.5rem auto;
+            line-height: 1.6;
+        }
+
+        p {
+            font-size: 1.2rem;
+            margin-top: 1rem;
+            color: #ffdde1;
+        }
+
+        a {
+            display: inline-block;
+            margin-top: 1.5rem;
+            padding: 0.5rem 1rem;
+            background-color: #ef5350;
+            color: #fff;
+            text-decoration: none;
+            border-radius: 8px;
+            font-weight: bold;
+            transition: background 0.3s ease;
+        }
+
+        a:hover {
+            background-color: #e53935;
+        }
+
+        .emoji {
+            font-size: 3rem;
+            margin-top: 2rem;
+            animation: float 2s ease-in-out infinite;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>404</h1>
+        <h2>NON-default 404</h2>
+        <h4>
+            couldn't find what you're looking for.<br>
+            Maybe the URL is wrong, or the resource just vanished into the void.<br>
+            Happens to the best of us.
+        </h4>
+        <p>You’ve drifted off course... 🔥</p>
+        <a href="http://127.0.0.1:8088">Return to safety</a>
+        <div class="emoji">🚨🧯🛑</div>
+    </div>
+</body>
+</html>

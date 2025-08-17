@@ -38,6 +38,18 @@ Webserv::~Webserv()
         }
     }
 }
+void deleteAllClients(std::map<int, client*> &clientlist)
+{
+    std::map<int, client*>::iterator it;
+
+    for (it = clientlist.begin(); it != clientlist.end(); ++it)
+    {
+        if (it->second)
+            delete it->second; 
+    }
+
+    clientlist.clear(); 
+}
 
 void Webserv::init(void)
 {
@@ -273,7 +285,7 @@ void Webserv::start(void)
             if (!(pfd.revents & (POLLIN | POLLOUT | POLLHUP)))
                 continue;
 
-                
+
             //////////////////////////////////////////////////////////////////////////////
             //IF THE POLLED FD IS A SERVER FD, MEANS NEW CLIENT. CREATE A SOCKET FOR HIM//
             //////////////////////////////////////////////////////////////////////////////
@@ -340,6 +352,7 @@ void Webserv::start(void)
             }
         }
     }
+    deleteAllClients(clientlist);
     // Close all client sockets
     for (std::map<int, ServerConfig*>::iterator it = client_fd_to_server.begin(); it != client_fd_to_server.end(); ++it)
         close(it->first);
@@ -348,5 +361,8 @@ void Webserv::start(void)
         close(*it);
     std::cout << "Server shutdown gracefully.\n";
 }
+
+
+
 
 
