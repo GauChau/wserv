@@ -105,7 +105,7 @@ int CGIHandler::launch()
 
 bool CGIHandler::readOutput()
 {
-    std::cerr<<" readoutputCGI fd:"<<_fd;
+    // std::cerr<<" readoutputCGI fd:"<<_fd;
     if (_fd == -1)
         return false;
 
@@ -160,7 +160,7 @@ bool CGIHandler::readOutput()
 
         // Envoyer la réponse HTTP
         HttpForms ok(0, 200, this->_client->keepalive, contentType, body, this->_client->_request->_ReqContent);
-        std::cerr<<"client_ptr->_request->_ReqContent: "<<this->_client->_request->_ReqContent<<std::endl;
+        // std::cerr<<"client_ptr->_request->_ReqContent: "<<this->_client->_request->_ReqContent<<std::endl;
 
 
         this->_client->status = WRITING;

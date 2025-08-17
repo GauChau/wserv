@@ -183,6 +183,8 @@ void Webserv::start(void)
          if (ret == 0)
             continue;
         fds_to_remove.clear();
+
+
         /////////////////////////////////////////////////////////////
         //LOOPING THROUGH ALL REGISTERD PFD TO FIND THE PINGED ONES//
         /////////////////////////////////////////////////////////////
@@ -194,9 +196,19 @@ void Webserv::start(void)
             //     std::cerr << "  AAAClient " << pfd.fd << " STATUS: " << clientlist[pfd.fd]->status << std::endl;
             // }
 
-            //print pfd revents
-            std::cerr << "  PINGED FD: " << pfd.fd << " REVENTS: " << pfd.revents << std::endl;
-
+            //print pfd revents if pfd reven
+            if (pfd.revents)
+            {
+                // std::cerr << "\n  PINGED FD: " << pfd.fd << " REVENTS: " << pfd.revents;
+                if (clientlist.count(pfd.fd))
+                {
+                    // std::cerr << " STATUS: " << clientlist[pfd.fd]->status ;
+                    // if (clientlist[pfd.fd]->_request)
+                        // std::cerr<< " class request " << clientlist[pfd.fd]->_request << " reqstat " << clientlist[pfd.fd]->_request->_request_status;
+                }
+                // std::cerr << std::endl;
+            }
+            
             ////////////////////////////////////////////////////////////////////
             //WRITING RESPONSE ON THE SOCKET IF READY TO RECEIVE DATA(POLLOUT)//
             ////////////////////////////////////////////////////////////////////
@@ -231,24 +243,24 @@ void Webserv::start(void)
                         bool finished = client_ptr->cgi_handler->readOutput();
                         if (finished) {
 
-                            std::cerr << "  B4 cgi FD |" << pfd.fd << "| STATUS: " << client_ptr->status<< "CGI FD: " << client_ptr->cgi_fd;
-                            std::cerr<< " Parser et envoyer la réponse HTTP ";
-                            client_ptr->_request->_ReqContent = client_ptr->cgi_handler->getBuffer();
+                            // std::cerr << "  B4 cgi FD |" << pfd.fd << "| STATUS: " << client_ptr->status<< "CGI FD: " << client_ptr->cgi_fd;
+                            // std::cerr<< " Parser et envoyer la réponse HTTP ";
+                            // client_ptr->_request->_ReqContent = client_ptr->cgi_handler->getBuffer();
                             // ...parse headers/body comme avant...
                             // ...envoie la réponse via HttpForms...
                             fds_to_remove.push_back(pfd.fd);
                             client_ptr->status = WRITING;
                             delete client_ptr->cgi_handler;
                             client_ptr->cgi_handler = NULL;
-                            std::cerr << " AFTER CLIENT |" << pfd.fd << "| STATUS: " << client_ptr->status<< "CGI FD: " << client_ptr->cgi_fd
-                                <<" CLIENT FD. " << client_ptr->getFd();
+                            // std::cerr << " AFTER CLIENT |" << pfd.fd << "| STATUS: " << client_ptr->status<< "CGI FD: " << client_ptr->cgi_fd
+                                // <<" CLIENT FD. " << client_ptr->getFd();
 
 
                             struct pollfd* changeevent = findPollfd(poll_fds, client_ptr->getFd());
                             if (changeevent)
                             {
                                 changeevent->events = POLLOUT; // Set to POLLOUT for writing response
-                                std::cerr << "  CHANGEEVENT POLLOUT " << changeevent->fd << std::endl;
+                                // std::cerr << "  CHANGEEVENT POLLOUT " << changeevent->fd << std::endl;
                             }
                         }
                     }
@@ -263,7 +275,7 @@ void Webserv::start(void)
             
             if (clientlist.count(pfd.fd) && clientlist[pfd.fd]->status ==   WRITING)
             {
-                std::cerr << "  BBBBClient " << pfd.fd << " WRITING ";
+                // std::cerr << "  BBBBClient " << pfd.fd << " WRITING ";
             }
             //////////////////////////////////////////////////////////////////////////////
             //IF THE POLLED FD IS A SERVER FD, MEANS NEW CLIENT. CREATE A SOCKET FOR HIM//
@@ -273,7 +285,7 @@ void Webserv::start(void)
                 ServerConfig* serv = fd_to_server[pfd.fd];
                 if (!serv)
                 {
-                    std::cerr << "Error: no ServerConfig for fd " << pfd.fd << std::endl;
+                    // std::cerr << "Error: no ServerConfig for fd " << pfd.fd << std::endl;
                     continue;
                 }
                 int client_fd = accept(pfd.fd, (struct sockaddr*)&(serv->client_addr), &serv->client_addr_len);                
@@ -347,7 +359,7 @@ void Webserv::start(void)
 bool Webserv::handleCGIResponse(client* client_ptr)
 {
     if (!client_ptr) return false;
-    std::cerr<<" AhandleCGIResponse ";
+    // std::cerr<<" AhandleCGIResponse ";
 
     char buffer[4096];
     ssize_t bytes_read = read(client_ptr->cgi_fd, buffer, sizeof(buffer));
@@ -355,12 +367,12 @@ bool Webserv::handleCGIResponse(client* client_ptr)
     {
         client_ptr->cgi_buffer.append(buffer, bytes_read);
         // On attend la fin du CGI (EOF) pour parser et répondre
-        std::cerr<<" APPENDCGI RESP ";
+        // std::cerr<<" APPENDCGI RESP ";
         return true;
     }
     if (bytes_read == 0) // EOF : CGI terminé
     {
-        std::cerr<<" EOF REACHED ";
+        // std::cerr<<" EOF REACHED ";
         close(client_ptr->cgi_fd);
         // client_ptr->cgi_fd = -1;
 
@@ -372,7 +384,7 @@ bool Webserv::handleCGIResponse(client* client_ptr)
         std::string body;
         if (header_end != std::string::npos)
         {
-            std::cerr<<" EOFB ";
+            // std::cerr<<" EOFB ";
             std::string headers = client_ptr->cgi_buffer.substr(0, header_end);
             body = client_ptr->cgi_buffer.substr(header_end + 4);
             std::istringstream headerStream(headers);
@@ -389,11 +401,11 @@ bool Webserv::handleCGIResponse(client* client_ptr)
         }
         else
             body = client_ptr->cgi_buffer;
-        std::cerr<<" EOFC ";
+        // std::cerr<<" EOFC ";
 
         // Envoyer la réponse HTTP
         HttpForms ok(client_ptr->getFd(), 200, client_ptr->keepalive, contentType, body, client_ptr->_request->_ReqContent);
-        std::cerr<<"client_ptr->_request->_ReqContent: "<<client_ptr->_request->_ReqContent<<std::endl;
+        // std::cerr<<"client_ptr->_request->_ReqContent: "<<client_ptr->_request->_ReqContent<<std::endl;
 
 
         client_ptr->status = WRITING;

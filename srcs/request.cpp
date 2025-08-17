@@ -40,7 +40,14 @@ void Request::sendResponse()
     }
 	else if(_totalsent >= this->_ReqContent.size())
 	{
+		//cerr send on fd
+		std::cerr << "\033[32m[+] Response sent successfully on socket " << this->_socket << "\033[0m\n";
 		this->_request_status = DONE;
+
+		//un std::cerr qui affiche this_reqcontent reqcontent size et totalsen en une line
+		// std::cerr<<" reqcont "<< this->_ReqContent << "this->_Req.size(): " << this->_ReqContent.size() << " _totalsent: " << this->_totalsent << std::endl;
+
+		
 	}
 }
 void Request::requestParser()
@@ -91,17 +98,17 @@ void Request::requestParser()
 
 int Request::checkPostDataOk()
 {
-	std::cerr<<" CHECKPOSTDATA. ";
+	// std::cerr<<" CHECKPOSTDATA. ";
 	//CHECKS IF ALL DATA IS RECEIVED OR IF READING AGAIN IS NECESSARY
 	if (this->_totalrec < this->_contlen)
 	{
-		std::cerr<<" NEEDMOREDATA rec: "<< this->_totalrec<< " ctlen: "<< this->_contlen ;
+		// std::cerr<<" NEEDMOREDATA rec: "<< this->_totalrec<< " ctlen: "<< this->_contlen ;
 		this->_request_status = READINGDATA;
 		return 0;
 	}
 	else //All data is received, executing post request
 	{
-		std::cerr<<" DATARECED. ";
+		// std::cerr<<" DATARECED. ";
 		this->_request_status = EXECUTING;
 		return 1;
 	}
@@ -110,11 +117,11 @@ int Request::checkPostDataOk()
 
 int Request::checkHeaderCompletion()
 {
-	std::cerr<<" CHECKHEADER ";
+	// std::cerr<<" CHECKHEADER ";
 	std::string::size_type pos = this->_datarec.find("\r\n\r\n",0);
 	if (pos != std::string::npos) //HEADER COMPLETE, PARSE IT AND CHOOSE STATE ACCORDINGLY
 	{
-		std::cerr<<" HEAD DONE. ";
+		// std::cerr<<" HEAD DONE. ";
 		this->requestParser();
 		// if(this->r_method == "POST")//CHECKS IF ALL DATA IS RECEIVED OR IF READING AGAIN IS NECESSARY
 		// 	checkPostDataOk();
@@ -142,7 +149,7 @@ Request::Request(const ServerConfig &serv, int socket, int status): _socket(sock
 	this->_totalsent = 0;
 	this->_request_status = status;
 	this->_datarec = "";
-	std::cerr<<"\n REQUEST: ";
+	// std::cerr<<"\n REQUEST: ";
 	this->readRequest();
 
 	//CHECKS IF HEADER IS COMPLETE
@@ -159,6 +166,30 @@ Request::Request(const ServerConfig &serv, int socket, int status): _socket(sock
 
 
 }
+
+// Request::Requestexist(const ServerConfig &serv, int socket, int status): _socket(socket),_server(serv)
+// {
+// 	this->_totalrec = 0;
+// 	this->_totalsent = 0;
+// 	this->_request_status = status;
+// 	this->_datarec = "";
+// 	std::cerr<<"\n REQUEST: ";
+// 	this->readRequest();
+
+// 	//CHECKS IF HEADER IS COMPLETE
+// 	checkHeaderCompletion();//header complete
+
+// 	if(this->_request_status == EXECUTING)
+// 	{
+// 		this->execute(this->exec_code);
+		
+// 	}
+// 	else
+// 		return ;
+	
+
+
+// }
 
 
 
@@ -252,7 +283,7 @@ int Request::launchCGI()
 
 void Request::execute(std::string s = "null")
 {
-	std::cerr<<" EXEC ";
+	// std::cerr<<" EXEC ";
 	if(this->exec_code == "405")
 	{
 		const std::string&
@@ -279,7 +310,7 @@ void Request::execute(std::string s = "null")
 		else if (this->r_method == "DELETE")
 			this->Delete();
 	}
-	std::cerr<<" AFTER EXEC ";
+	// std::cerr<<" AFTER EXEC ";
 }
 
 

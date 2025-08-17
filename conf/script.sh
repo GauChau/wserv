@@ -50,7 +50,7 @@ python_version = platform.python_version()
 cwd = os.getcwd()
 user = os.environ.get('USER') or os.environ.get('USERNAME') or 'Unknown'
 
-print("Content-Type: text/plain\r\n")
+print("Content-Type: text/plain\r\n\r\n")
 
 print("✅ CGI script executed successfully!\n")
 print(f"👤 User: {user}")

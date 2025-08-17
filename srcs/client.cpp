@@ -22,13 +22,21 @@ bool client::handle_jesus(pollfd& pfd)
     {
 		if( this->status == WAITING && this->_request == NULL)
 		{
-			   std::cerr<<" aaa "<<pfd.revents << " on pfd" << pfd.fd;
+			//    std::cerr<<" aaa "<<pfd.revents << " on pfd" << pfd.fd;
 			// std::cerr<<"new req. ";
 			this->status = READING;
 			this->_request = new Request(*serv, fd, this->status);
 			this->status = this->_request->_request_status;
 			tryLaunchCGI();
 		}
+		// if( this->status == WAITING && this->_request)
+		// {
+		// 	std::cerr<<" dell req:";
+		// 	delete this->_request;
+		// 	this->_request = new Request(*serv, fd, this->status);
+		// 	this->status = this->_request->_request_status;
+		// 	tryLaunchCGI();
+		// }
     }
 
     // si tout le header est compris dans le 1er read, le parse, sinon read encore
@@ -65,7 +73,7 @@ bool client::handle_jesus(pollfd& pfd)
 		}
 		if (this->_request->iscgi && this->status != WAITING)
 		{
-			std::cerr<<" CCC "<<pfd.revents << " on pfd" << pfd.fd;
+			// std::cerr<<" CCC "<<pfd.revents << " on pfd" << pfd.fd;
 			this->status = WAITING;
 			// this->cgi_fd = this->_request->launchCGI();
 			tryLaunchCGI();
@@ -76,10 +84,10 @@ bool client::handle_jesus(pollfd& pfd)
 	// std::cerr<<" DDD "<<pfd.revents << " on pfd" << pfd.fd;
 	if (this->status == WRITING)
 	{
-		std::cerr<<" WRITING.SETTING.POLLOUT. : "<<this->status;
+		// std::cerr<<" WRITING.SETTING.POLLOUT. : "<<this->status;
 		pfd.events =  POLLOUT;
 
-		// std::cerr<<" \n http respoinse: \n"<<this->_request->_get_ReqContent();
+		
 		
 	}
 	return false;
@@ -90,17 +98,18 @@ bool client::answerClient(pollfd& pfd)
 	// std::cerr<<" ANSWER.CLIENT :"<<this->status;
 	if((pfd.revents & POLLOUT) && this->status == WRITING && this->_request)
 	{	
-		std::cerr<<" SENDING.CLIENT \n"<<this->status;
+		// std::cerr<<" SENDING.CLIENT \n"<<this->status;
 		this->_request->sendResponse();
 	}
 	if (this->_request->_request_status == DONE)
 	{
-		std::cerr<<" DONE.req.DELETE \n"<<this->status;
 		pfd.events = POLLIN;
 		this->status = WAITING;
 		this->keepalive = this->_request->keepalive;
 		delete this->_request;
 		this->_request = NULL;
+		
+		// std::cerr<<" DONE.req.DELETE "<<this->status;
 		return true;
 	}
 	return false;
