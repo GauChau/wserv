@@ -8,7 +8,7 @@
 #include "HttpForms.hpp"
 
 CGIHandler::CGIHandler(client* client)
-    : _client(client), _fd(-1), _pid(-1), _finished(false) {}
+    : _client(client), _fd(-1), _pid(-1), _finished(false) {registered = 0; }
 
 CGIHandler::~CGIHandler() {
     if (_fd != -1) close(_fd);
@@ -21,38 +21,6 @@ void CGIHandler::setRequestBody(const std::string& body) { _requestBody = body; 
 
 int CGIHandler::launch() 
 {
-    // int pipe_out[2], pipe_in[2];
-    // if (pipe(pipe_out) == -1 || pipe(pipe_in) == -1) return -1;
-    // _pid = fork();
-    // if (_pid < 0)
-    // { 
-    //     close(pipe_out[0]); close(pipe_out[1]);
-    //     close(pipe_in[0]); close(pipe_in[1]);
-    //     return -1; 
-    // }
-    // if (_pid == 0)
-    // {
-    //     dup2(pipe_in[0], STDIN_FILENO);
-    //     dup2(pipe_out[1], STDOUT_FILENO);
-    //     close(pipe_in[1]); close(pipe_out[0]);
-    //     char **envp = buildEnvArray();
-    //     char* argv[] = { (char*)_scriptPath.c_str(), NULL };
-    //     execve(_scriptPath.c_str(), argv, envp);
-    //     perror("execve");
-    //     exit(1);
-    // }
-    // close(pipe_in[0]);
-    // close(pipe_out[1]);
-
-    // // if (!_requestBody.empty())
-    // //     write(pipe_in[1], _requestBody.c_str(), _requestBody.size());
-    // close(pipe_in[1]);
-    // fcntl(pipe_out[0], F_SETFL, O_NONBLOCK);
-    // _fd = pipe_out[0];
-    // return _fd;
-
-///////////////////////////////////////////////////////////////////
-
     int pipe_out[2];
     int pipe_in[2];
 
@@ -79,10 +47,7 @@ int CGIHandler::launch()
         close(pipe_in[1]);close(pipe_out[0]);
 
         char* argv[] = { (char*)this->_scriptPath.c_str(), NULL };
-        // char** envp = buildEnvp(this->env);
         char **envp = buildEnvArray();
-		
-		// std::cerr<<" scriptpathLAUNCH: "<<this->scriptPath;
         execve(_scriptPath.c_str(), argv, envp);
         perror("execve");
         exit(0);
@@ -105,28 +70,18 @@ int CGIHandler::launch()
 
 bool CGIHandler::readOutput()
 {
-    // std::cerr<<" readoutputCGI fd:"<<_fd;
     if (_fd == -1)
         return false;
 
     char buffer[4096];
     ssize_t bytes_read = read(_fd, buffer, sizeof(buffer));
-    // std::cerr<<"  Breturn: "<<bytes_read;
     if (bytes_read > 0) {
         _buffer.append(buffer, bytes_read);
         return false; // Pas fini
     }
-    // if (bytes_read == 0) {
-    //     close(_fd);
-    //     // _fd = -1;
-    //     _finished = true;
-    //     return true; // Fini
-    // }
-
 
     if (bytes_read == 0) // EOF : CGI terminé
     {
-        // std::cerr<<" EOF REACHED ";
         close(_fd);
         _fd = -1;
         _finished = true;
@@ -156,13 +111,9 @@ bool CGIHandler::readOutput()
         }
         else
             body = _buffer;
-        // std::cerr<<" EOFC ";
 
         // Envoyer la réponse HTTP
         HttpForms ok(0, 200, this->_client->keepalive, contentType, body, this->_client->_request->_ReqContent);
-        // std::cerr<<"client_ptr->_request->_ReqContent: "<<this->_client->_request->_ReqContent<<std::endl;
-
-
         this->_client->status = WRITING;
         this->_client->cgi_buffer.clear();
         return true ;

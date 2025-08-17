@@ -49,12 +49,15 @@ class client
 {
 	public:
 		client(){};
-		client( pollfd& pfdin, ServerConfig *server):serv(server),cgi_handler(NULL)
+		client( pollfd& pfdin, ServerConfig *server):cgi_handler(NULL), serv(server)
 		{
 			//  if (!pfd)
 			// {
 			// 	std::cerr << "Invalid pollfd pointer in client CONSTRUCTOR" << std::endl;
 			// }
+			this->cgiresgitered =false;
+			this->keepalive = false;\
+			this->cgi_handler = NULL;
 			std::cerr<<"new client:"<<pfdin.fd<<std::endl;
 			totalrec = 0;
 			data="";
@@ -62,24 +65,9 @@ class client
 			this->fd = pfdin.fd;
 			this->_request = NULL;
 			std::cerr << "1, "<< pfdin.fd;
-			bool keepalive = true;
 			cgi_fd=-1;
 		};
-
-		client& operator=(const client& assign)
-		{
-
-
-
-		};
-		~client()
-		{
-			if(this->_request != NULL)
-				delete this->_request;
-			std::cerr<<"client destroyed:"<<this->fd<<std::endl;
-			if (cgi_handler)
-				delete cgi_handler;
-		};
+		~client();
 
 		HttpForms *_formulaire;
 		Request	*_request;
@@ -91,7 +79,7 @@ class client
 		int getStatus()const{return status;};
 		int getFd()const{return fd;};
 		int status, cgi_fd;
-		bool keepalive = false, cgiresgitered=false;
+		bool keepalive, cgiresgitered;
 		std::string cgi_buffer;
 		CGIHandler* cgi_handler;
 

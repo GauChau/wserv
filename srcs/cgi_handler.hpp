@@ -28,7 +28,7 @@ public:
 
     // Indique si le CGI est terminé
     bool isFinished() const;
-    int registered = 0;
+    int registered;
 
 private:
     client* _client;

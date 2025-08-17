@@ -83,7 +83,7 @@ struct ServerConfig
         client_addr;
     socklen_t
         client_addr_len;
-    ssize_t
+    size_t
         client_max_body_size;
     std::vector<LocationConfig>
         locations;
@@ -103,7 +103,6 @@ class Webserv
         void init(void);
         void start(void);
         bool parseConfigFile(const std::string& filename);
-        bool handleCGIResponse(client* client_ptr);
 
         
 };

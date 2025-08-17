@@ -8,7 +8,6 @@ Request::~Request()
 
 void Request::readRequest()
 {
-	std::cerr<<" read ";
 	char buffer[4096];
 	this->_bytes_rec = recv(this->_socket, buffer, sizeof(buffer),0);
 	if (this->_bytes_rec > 0)
@@ -20,7 +19,6 @@ void Request::readRequest()
 	}
 	else if (this->_bytes_rec == 0)
 	{
-		std::cerr<<" brec=0 ";
 		this->_request_status = EXECUTING;
 	}
 	std::cerr<<" readDONE ";
@@ -40,14 +38,8 @@ void Request::sendResponse()
     }
 	else if(_totalsent >= this->_ReqContent.size())
 	{
-		//cerr send on fd
 		std::cerr << "\033[32m[+] Response sent successfully on socket " << this->_socket << "\033[0m\n";
-		this->_request_status = DONE;
-
-		//un std::cerr qui affiche this_reqcontent reqcontent size et totalsen en une line
-		// std::cerr<<" reqcont "<< this->_ReqContent << "this->_Req.size(): " << this->_ReqContent.size() << " _totalsent: " << this->_totalsent << std::endl;
-
-		
+		this->_request_status = DONE;		
 	}
 }
 void Request::requestParser()
@@ -98,17 +90,13 @@ void Request::requestParser()
 
 int Request::checkPostDataOk()
 {
-	// std::cerr<<" CHECKPOSTDATA. ";
-	//CHECKS IF ALL DATA IS RECEIVED OR IF READING AGAIN IS NECESSARY
 	if (this->_totalrec < this->_contlen)
 	{
-		// std::cerr<<" NEEDMOREDATA rec: "<< this->_totalrec<< " ctlen: "<< this->_contlen ;
 		this->_request_status = READINGDATA;
 		return 0;
 	}
 	else //All data is received, executing post request
 	{
-		// std::cerr<<" DATARECED. ";
 		this->_request_status = EXECUTING;
 		return 1;
 	}
@@ -121,14 +109,8 @@ int Request::checkHeaderCompletion()
 	std::string::size_type pos = this->_datarec.find("\r\n\r\n",0);
 	if (pos != std::string::npos) //HEADER COMPLETE, PARSE IT AND CHOOSE STATE ACCORDINGLY
 	{
-		// std::cerr<<" HEAD DONE. ";
 		this->requestParser();
-		// if(this->r_method == "POST")//CHECKS IF ALL DATA IS RECEIVED OR IF READING AGAIN IS NECESSARY
-		// 	checkPostDataOk();
-		// else//Method is get or delete, so no content. execute the request
-		// {
-			this->_request_status = EXECUTING;
-		// }
+		this->_request_status = EXECUTING;
 		return true;
 	}
 	else //header incomplete
@@ -137,19 +119,18 @@ int Request::checkHeaderCompletion()
 		if (this->_bytes_rec ==0)
 		{	
 			this->_request_status = WAITING;
-			keepalive == false;
 		}
 		return false;
 	}
 }
 
-Request::Request(const ServerConfig &serv, int socket, int status): _socket(socket),_server(serv)
+Request::Request(const ServerConfig &serv, int socket, int status): _server(serv), _socket(socket)
 {
 	this->_totalrec = 0;
 	this->_totalsent = 0;
 	this->_request_status = status;
 	this->_datarec = "";
-	// std::cerr<<"\n REQUEST: ";
+	this->iscgi = 0;
 	this->readRequest();
 
 	//CHECKS IF HEADER IS COMPLETE
@@ -157,8 +138,7 @@ Request::Request(const ServerConfig &serv, int socket, int status): _socket(sock
 
 	if(this->_request_status == EXECUTING)
 	{
-		this->execute(this->exec_code);
-		
+		this->execute();
 	}
 	else
 		return ;
@@ -166,33 +146,6 @@ Request::Request(const ServerConfig &serv, int socket, int status): _socket(sock
 
 
 }
-
-// Request::Requestexist(const ServerConfig &serv, int socket, int status): _socket(socket),_server(serv)
-// {
-// 	this->_totalrec = 0;
-// 	this->_totalsent = 0;
-// 	this->_request_status = status;
-// 	this->_datarec = "";
-// 	std::cerr<<"\n REQUEST: ";
-// 	this->readRequest();
-
-// 	//CHECKS IF HEADER IS COMPLETE
-// 	checkHeaderCompletion();//header complete
-
-// 	if(this->_request_status == EXECUTING)
-// 	{
-// 		this->execute(this->exec_code);
-		
-// 	}
-// 	else
-// 		return ;
-	
-
-
-// }
-
-
-
 
 
 void Request::check_allowed_methods(const ServerConfig &server)
@@ -225,65 +178,13 @@ void Request::check_allowed_methods(const ServerConfig &server)
 			this->exec_code = ""; // <--- then execute it
 		else
 			this->exec_code = "405"; // <--- then execute it
-		// this->_request_status = WRITING;
 		return ;
 	}
 	this->exec_code = "404"; // <--- then execute it
 }
 
-int Request::launchCGI()
+void Request::execute()
 {
-    int pipe_out[2];
-    int pipe_in[2];
-
-    if (pipe(pipe_out) == -1 || pipe(pipe_in) == -1) {
-        perror("pipe");
-        return -1;
-    }
-
-    pid_t pid = fork();
-    if (pid < 0) {
-        perror("fork");
-        close(pipe_out[0]);
-        close(pipe_out[1]);
-        close(pipe_in[0]);
-        close(pipe_in[1]);
-        return -1;
-    }
-    std::cout << "running " << this->scriptPath << "..." << std::endl;
-    if (pid == 0)
-    {
-        // Child
-        dup2(pipe_in[0], STDIN_FILENO);
-        dup2(pipe_out[1], STDOUT_FILENO);
-        close(pipe_in[1]);
-        close(pipe_out[0]);
-
-        char* argv[] = { (char*)this->scriptPath.c_str(), NULL };
-        char** envp = buildEnvp(this->env);
-		
-		// std::cerr<<" scriptpathLAUNCH: "<<this->scriptPath;
-        execve(scriptPath.c_str(), argv, envp);
-        perror("execve");
-        exit(1);
-    }
-    else
-    {
-        close(pipe_in[0]);
-        close(pipe_out[1]);
-        if (this->r_method == "POST" && !this->r_body.empty())
-            write(pipe_in[1], this->r_body.c_str(),this->r_body.size());
-        close(pipe_in[1]);
-
-        fcntl(pipe_out[0], F_SETFL, O_NONBLOCK);
-        return pipe_out[0]; // fd à surveiller dans poll
-    }
-}
-
-
-void Request::execute(std::string s = "null")
-{
-	// std::cerr<<" EXEC ";
 	if(this->exec_code == "405")
 	{
 		const std::string&
@@ -326,8 +227,12 @@ void Request::Get()
 	// std::cerr<<" GETMETH_status: " << this->_request_status<<"";
 	if (stat(full_path.c_str(), &st) == 0)
     {
+		//old to version to comply with werror etc
+		// if (S_ISDIR(st.st_mode) && (!this->_loc.index.empty() ||
+		// ((&(this->_loc.cgi_extension) != NULL && !this->_loc.cgi_extension.empty())) ))
+
 		if (S_ISDIR(st.st_mode) && (!this->_loc.index.empty() ||
-		((&(this->_loc.cgi_extension) != NULL && !this->_loc.cgi_extension.empty())) ))
+		((!this->_loc.cgi_extension.empty())) ))
         {
 			file_path = full_path + "/" + this->_loc.index;
 			if(this->location_filename.size()> this->_loc.root.size())
@@ -436,7 +341,8 @@ void Request::Get()
 	else
 	{
 		// default get
-		if(&(this->_loc.cgi_extension) == NULL || this->_loc.cgi_extension.empty())
+		// if(&(this->_loc.cgi_extension) == NULL || this->_loc.cgi_extension.empty())
+		if(this->_loc.cgi_extension.empty())
 		{
 			const std::string&
 			body = nonblocking_read(file_path);
@@ -466,35 +372,6 @@ void Request::Get()
 			this->env["GATEWAY_INTERFACE"] = "CGI/1.1";
 			this->env["SERVER_PROTOCOL"] = "HTTP/1.1";
 			this->env["REDIRECT_STATUS"] = "200";
-
-
-			// std::string 
-			// 		cgi_output = executeCGI(script_path, this->r_method, this->r_body, env),
-			// 		contentType = "text/plain",
-			// 		body;
-					
-			// int cgifd = launchCGI();
-			// std::string::size_type header_end = cgi_output.find("\r\n\r\n");
-			// if (header_end == std::string::npos)
-			// 	header_end = cgi_output.find("\n\n");
-			// if (header_end != std::string::npos)
-			// {
-			// 	std::string headers = cgi_output.substr(0, header_end);
-			// 	body = cgi_output.substr(header_end + 4); // skip "\r\n\r\n" && "\n\n"
-			// 	std::istringstream headerStream(headers);
-			// 	std::string line;
-			// 	while (std::getline(headerStream, line))
-			// 	{
-			// 		if (line.find("Content-Type:") != std::string::npos)
-			// 		{
-			// 			contentType = line.substr(line.find(":") + 1);
-			// 			while (contentType[0] == ' ') contentType.erase(0, 1); // trim spaces
-			// 		}
-			// 	}
-			// }
-			// else
-			// 	body = cgi_output; // no headers? treat all as body
-			// HttpForms ok(this->_socket, 200,this->keepalive, contentType, body,this->_ReqContent);
 		}
 	}
 }
@@ -598,7 +475,7 @@ void	Request::writeData()
 					full_path = this->_loc.upload_store + "/" + safe_name;
 			this->file.name = full_path;
 			// nonblocking_write(full_path, this->r_body.data(), this->r_body.size());
-			std::ofstream outjoe(full_path.c_str(), std::ios::app | std::ios::binary);
+			std::ofstream outjoe(full_path.c_str(), std::ios::trunc | std::ios::binary);
 			outjoe << this->r_body;
 			break;
 		}
@@ -678,8 +555,8 @@ void Request::Post()
 		{
 			Post_data_write();
 		}
-		else
-			this->_request_status == READINGDATA;
+		// else
+		// 	this->_request_status = READINGDATA;
 	}
 	
 
@@ -695,8 +572,9 @@ std::string Request::_get_ReqContent()
 
 
 Request::Request(std::string raw, const ServerConfig &servr, int socket, ssize_t bytes_received)
-: _socket(socket),_server(servr),  _bytes_rec(bytes_received)
+:_server(servr), _socket(socket),  _bytes_rec(bytes_received)
 {
+	this->iscgi = 0;
 	this->_contlen = 0;
     this->r_header.append(raw.data(), this->_bytes_rec);
     std::istringstream iss(raw);

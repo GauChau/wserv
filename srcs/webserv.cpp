@@ -272,11 +272,8 @@ void Webserv::start(void)
             
             if (!(pfd.revents & (POLLIN | POLLOUT | POLLHUP)))
                 continue;
-            
-            if (clientlist.count(pfd.fd) && clientlist[pfd.fd]->status ==   WRITING)
-            {
-                // std::cerr << "  BBBBClient " << pfd.fd << " WRITING ";
-            }
+
+                
             //////////////////////////////////////////////////////////////////////////////
             //IF THE POLLED FD IS A SERVER FD, MEANS NEW CLIENT. CREATE A SOCKET FOR HIM//
             //////////////////////////////////////////////////////////////////////////////
@@ -318,7 +315,6 @@ void Webserv::start(void)
                 ServerConfig* serv = client_fd_to_server[pfd.fd];
                 if (!serv)
                     continue;
-                // std::cerr<<" PASSED "<<pfd.revents << " on pfd" << pfd.fd;
                 clientlist[pfd.fd]->handle_jesus(pfd);
             }
         }
@@ -351,70 +347,6 @@ void Webserv::start(void)
     for (std::set<int>::iterator it = server_fds.begin(); it != server_fds.end(); ++it)
         close(*it);
     std::cout << "Server shutdown gracefully.\n";
-}
-
-
-
-
-bool Webserv::handleCGIResponse(client* client_ptr)
-{
-    if (!client_ptr) return false;
-    // std::cerr<<" AhandleCGIResponse ";
-
-    char buffer[4096];
-    ssize_t bytes_read = read(client_ptr->cgi_fd, buffer, sizeof(buffer));
-    if (bytes_read > 0)
-    {
-        client_ptr->cgi_buffer.append(buffer, bytes_read);
-        // On attend la fin du CGI (EOF) pour parser et répondre
-        // std::cerr<<" APPENDCGI RESP ";
-        return true;
-    }
-    if (bytes_read == 0) // EOF : CGI terminé
-    {
-        // std::cerr<<" EOF REACHED ";
-        close(client_ptr->cgi_fd);
-        // client_ptr->cgi_fd = -1;
-
-        // Parser headers/body
-        std::string::size_type header_end = client_ptr->cgi_buffer.find("\r\n\r\n");
-        if (header_end == std::string::npos)
-            header_end = client_ptr->cgi_buffer.find("\n\n");
-        std::string contentType = "text/plain";
-        std::string body;
-        if (header_end != std::string::npos)
-        {
-            // std::cerr<<" EOFB ";
-            std::string headers = client_ptr->cgi_buffer.substr(0, header_end);
-            body = client_ptr->cgi_buffer.substr(header_end + 4);
-            std::istringstream headerStream(headers);
-            std::string line;
-            while (std::getline(headerStream, line))
-            {
-                if (line.find("Content-Type:") != std::string::npos)
-                {
-                    contentType = line.substr(line.find(":") + 1);
-                    while (!contentType.empty() && contentType[0] == ' ')
-                        contentType.erase(0, 1);
-                }
-            }
-        }
-        else
-            body = client_ptr->cgi_buffer;
-        // std::cerr<<" EOFC ";
-
-        // Envoyer la réponse HTTP
-        HttpForms ok(client_ptr->getFd(), 200, client_ptr->keepalive, contentType, body, client_ptr->_request->_ReqContent);
-        // std::cerr<<"client_ptr->_request->_ReqContent: "<<client_ptr->_request->_ReqContent<<std::endl;
-
-
-        client_ptr->status = WRITING;
-        client_ptr->cgi_buffer.clear();
-        return true ;
-    }
-    return false;
-
-    // Si bytes_read < 0 et errno == EAGAIN/EWOULDBLOCK, on attend le prochain poll
 }
 
 
