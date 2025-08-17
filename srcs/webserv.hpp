@@ -104,6 +104,7 @@ class Webserv
         void start(void);
         bool parseConfigFile(const std::string& filename);
         bool handleCGIResponse(client* client_ptr);
+
         
 };
 

@@ -105,7 +105,7 @@ int CGIHandler::launch()
 
 bool CGIHandler::readOutput()
 {
-    // std::cerr<<" readA fd"<<_fd;
+    std::cerr<<" readoutputCGI fd:"<<_fd;
     if (_fd == -1)
         return false;
 

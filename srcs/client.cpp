@@ -16,39 +16,25 @@ bool client::handle_jesus(pollfd& pfd)
     char buffer[2048];
     std::string response;
     ssize_t bytes_received = 0;
-	// std::cerr<<pfd.fd << " hand, " << pfd.revents<<std::endl;
    
     //  1er INIT, lire le premier contenu sur le socket
     if ((pfd.revents & POLLIN) )
     {
-		std::cerr<<" aaa "<<pfd.revents << " on pfd" << pfd.fd;
 		if( this->status == WAITING && this->_request == NULL)
-       {
-		// std::cerr<<"new req. ";
-		 this->status = READING;
-        this->_request = new Request(*serv, fd, this->status);
-		this->status = this->_request->_request_status;
-		tryLaunchCGI();
-		// std::cerr<<"req stat: "<<this->status;
+		{
+			   std::cerr<<" aaa "<<pfd.revents << " on pfd" << pfd.fd;
+			// std::cerr<<"new req. ";
+			this->status = READING;
+			this->_request = new Request(*serv, fd, this->status);
+			this->status = this->_request->_request_status;
+			tryLaunchCGI();
 		}
-	// 	else if( this->status == WAITING && this->_request)
-    //    {
-	// 	// std::cerr<<"new req. ";
-	// 	this->status = READING;
-	// 	delete this->_request;
-    //     this->_request = new Request(*serv, fd, this->status);
-	// 	this->status = this->_request->_request_status;
-	// 	// std::cerr<<"req stat: "<<this->status;
-	// 	}
-        // return false;
     }
 
     // si tout le header est compris dans le 1er read, le parse, sinon read encore
     if ((pfd.revents & POLLIN))
     {
-		std::cerr<<" BBB "<<pfd.revents << " on pfd" << pfd.fd;
-		// std::cerr<<" Aexecutes: \n"<<this->status;
-		// std::cerr<<this->_request->getDataRec()+"\n";
+		// std::cerr<<" STAUTS \n"<<this->status;
 		if (this->status == READINGHEADER && this->_request)
 		{
 			this->_request->readRequest();
@@ -87,7 +73,7 @@ bool client::handle_jesus(pollfd& pfd)
 		}
     }
 	
-	std::cerr<<" DDD "<<pfd.revents << " on pfd" << pfd.fd;
+	// std::cerr<<" DDD "<<pfd.revents << " on pfd" << pfd.fd;
 	if (this->status == WRITING)
 	{
 		std::cerr<<" WRITING.SETTING.POLLOUT. : "<<this->status;
@@ -109,6 +95,7 @@ bool client::answerClient(pollfd& pfd)
 	}
 	if (this->_request->_request_status == DONE)
 	{
+		std::cerr<<" DONE.req.DELETE \n"<<this->status;
 		pfd.events = POLLIN;
 		this->status = WAITING;
 		this->keepalive = this->_request->keepalive;
