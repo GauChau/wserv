@@ -4,7 +4,7 @@
 
 
 Request::~Request()
-{ std::cout<<"sock: "<<this->_socket<<" REQUEST DESTROYED:";}
+{ std::cout<<"sock: "<<this->_socket<<" REQUEST DESTROYED\n";}
 
 void Request::readRequest()
 {
@@ -38,7 +38,7 @@ void Request::sendResponse()
     }
 	else if(_totalsent >= this->_ReqContent.size())
 	{
-		std::cerr << "\033[32m[+] Response sent successfully on socket " << this->_socket << "\033[0m\n";
+		std::cerr << "\033[32m[+] Response sent successfully on socket " << this->_socket << "\033[0m";
 		this->_request_status = DONE;		
 	}
 }
@@ -105,9 +105,9 @@ int Request::checkPostDataOk()
 
 int Request::checkHeaderCompletion()
 {
-	// std::cerr<<" CHECKHEADER ";
+	std::cerr<<" CHECKHEADER ";
 	std::string::size_type pos = this->_datarec.find("\r\n\r\n",0);
-	if (pos != std::string::npos) //HEADER COMPLETE, PARSE IT AND CHOOSE STATE ACCORDINGLY
+	if (pos != std::string::npos || iscgi) //HEADER COMPLETE, PARSE IT AND CHOOSE STATE ACCORDINGLY
 	{
 		this->requestParser();
 		this->_request_status = EXECUTING;
@@ -115,6 +115,7 @@ int Request::checkHeaderCompletion()
 	}
 	else //header incomplete
 	{
+		std::cerr<<" \nCHECKHEADERfailed \n"<<this->_datarec+"\n";
 		this->_request_status = READINGHEADER;
 		if (this->_bytes_rec ==0)
 		{	
@@ -126,6 +127,7 @@ int Request::checkHeaderCompletion()
 
 Request::Request(const ServerConfig &serv, int socket, int status): _server(serv), _socket(socket)
 {
+	std::cerr<<"NEWREQ ON:|"<<socket<<"|  ";
 	this->_totalrec = 0;
 	this->_totalsent = 0;
 	this->_request_status = status;
@@ -154,7 +156,7 @@ void Request::check_allowed_methods(const ServerConfig &server)
 	std::cerr<<"b4 match rloc " <<r_location;
 	if(match_location(this->r_location, server.locations, location_target))
 	{
-		std::cerr<<"\n b4 location_filename: "<<location_filename <<" thisloc"<< _loc.path;
+		// std::cerr<<"\n b4 location_filename: "<<location_filename <<" thisloc"<< _loc.path;
 		this->_loc = location_target;
 		std::vector<std::string>::const_iterator it_meth = location_target.allowed_methods.begin();
 		for(;it_meth != location_target.allowed_methods.end();it_meth++)
@@ -176,7 +178,7 @@ void Request::check_allowed_methods(const ServerConfig &server)
 			}
 		}
 		// 405
-		std::cerr<<" } after location_filename: "<<location_filename<<std::endl;
+		// std::cerr<<" } after location_filename: "<<location_filename<<std::endl;
 		if(location_target.allowed_methods.size() == 0)
 			this->exec_code = ""; // <--- then execute it
 		else
@@ -227,7 +229,7 @@ void Request::Get()
 
     struct stat st;
 
-	std::cerr<<"111 location_filename: " << location_filename<<" _loc.root "<<_loc.root <<"";
+	// std::cerr<<"111 location_filename: " << location_filename<<" _loc.root "<<_loc.root <<"";
 	if (stat(full_path.c_str(), &st) == 0)
     {
 		//old to version to comply with werror etc
@@ -237,7 +239,7 @@ void Request::Get()
 		if (S_ISDIR(st.st_mode) && (!this->_loc.index.empty() ||
 		((!this->_loc.cgi_extension.empty())) ))
         {
-			std::cerr<<"222 location_filename: " << location_filename<<" _loc.root "<<_loc.root <<"";
+			// std::cerr<<"222 location_filename: " << location_filename<<" _loc.root "<<_loc.root <<"";
 			file_path = full_path + "/" + this->_loc.index;
 			if(this->location_filename.size()> this->_loc.root.size())
 			{
@@ -303,7 +305,7 @@ void Request::Get()
 	// 404 no
 	else if (file_path == "[404]")
 	{
-		std::cerr<<"555 location_filename: " << location_filename<<" _loc.root "<<_loc.root <<"";
+		// std::cerr<<"555 location_filename: " << location_filename<<" _loc.root "<<_loc.root <<"";
 		std::string path_404 = "./www/default/404.html";
 		std::vector<std::pair<unsigned int, std::string> >::const_iterator it;
 		it = this->_server.error_pages.begin();
@@ -323,7 +325,7 @@ void Request::Get()
 	// 403 forbidden
 	else if (file_path == "[403]")
 	{
-		std::cerr<<"666 location_filename: " << location_filename<<" _loc.root "<<_loc.root <<"";
+		// std::cerr<<"666 location_filename: " << location_filename<<" _loc.root "<<_loc.root <<"";
 		std::string path_403 = "./www/default/403.html";
 		std::vector<std::pair<unsigned int, std::string> >::const_iterator it;
 		it = this->_server.error_pages.begin();
@@ -354,7 +356,6 @@ void Request::Get()
 	{
 		if (file_path == "[AUTOINDEX]")
 			file_path = this->location_filename;
-		std::cerr<<"DEFAULT location_filename: " << location_filename<<" _loc.root "<<_loc.root <<"";
 		// default get
 		// if(&(this->_loc.cgi_extension) == NULL || this->_loc.cgi_extension.empty())
 		if(this->_loc.cgi_extension.empty())
@@ -367,6 +368,8 @@ void Request::Get()
 		// cgi
 		else
 		{
+					std::cerr<<"CGI ";
+
 			iscgi = true;
 			// this->_request_status = WAITING;
 			char cwd[PATH_MAX];

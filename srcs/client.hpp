@@ -55,8 +55,9 @@ class client
 			// {
 			// 	std::cerr << "Invalid pollfd pointer in client CONSTRUCTOR" << std::endl;
 			// }
+			
 			this->cgiresgitered =false;
-			this->keepalive = false;\
+			this->keepalive = false;
 			this->cgi_handler = NULL;
 			std::cerr<<"new client:"<<pfdin.fd<<std::endl;
 			totalrec = 0;

@@ -10,9 +10,10 @@
 CGIHandler::CGIHandler(client* client)
     : _client(client), _fd(-1), _pid(-1), _finished(false) {registered = 0; }
 
-CGIHandler::~CGIHandler() {
+CGIHandler::~CGIHandler()
+{
+    std::cerr<<" deletecgiclass ["<<_fd<<"] ";;
     if (_fd != -1) close(_fd);
-    std::cerr<<" deletecgiclass ";
 }
 
 void CGIHandler::setEnv(const std::map<std::string, std::string>& env) { _env = env; }
@@ -24,6 +25,7 @@ int CGIHandler::launch()
     int pipe_out[2];
     int pipe_in[2];
 
+    std::cout << "LAUNCHCGI ";
     if (pipe(pipe_out) == -1 || pipe(pipe_in) == -1) {
         perror("pipe");
         return -1;
@@ -38,7 +40,7 @@ int CGIHandler::launch()
         close(pipe_in[1]);
         return -1;
     }
-    std::cout << "running " << this->_scriptPath << "..." << std::endl;
+    std::cout << " " << this->_scriptPath << "..." << std::endl;
     if (pid == 0)
     {
         // Child
@@ -113,7 +115,13 @@ bool CGIHandler::readOutput()
             body = _buffer;
 
         // Envoyer la réponse HTTP
-        HttpForms ok(0, 200, this->_client->keepalive, contentType, body, this->_client->_request->_ReqContent);
+        if(body.empty())
+        {
+            body = "No content returned from CGI script.";
+            HttpForms ok(0, 500, this->_client->keepalive, contentType, body, this->_client->_request->_ReqContent);
+        }
+        else 
+             HttpForms ok(0, 200, this->_client->keepalive, contentType, body, this->_client->_request->_ReqContent);
         this->_client->status = WRITING;
         this->_client->cgi_buffer.clear();
         return true ;

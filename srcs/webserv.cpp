@@ -255,7 +255,7 @@ void Webserv::start(void)
                         bool finished = client_ptr->cgi_handler->readOutput();
                         if (finished) {
 
-                            // std::cerr << "  B4 cgi FD |" << pfd.fd << "| STATUS: " << client_ptr->status<< "CGI FD: " << client_ptr->cgi_fd;
+                            std::cerr << "  B4 cgi FD |" << pfd.fd << "| STATUS: " << client_ptr->status<< "CGI FD: " << client_ptr->cgi_fd;
                             // std::cerr<< " Parser et envoyer la réponse HTTP ";
                             // client_ptr->_request->_ReqContent = client_ptr->cgi_handler->getBuffer();
                             // ...parse headers/body comme avant...
@@ -266,7 +266,8 @@ void Webserv::start(void)
                             client_ptr->cgi_handler = NULL;
                             // std::cerr << " AFTER CLIENT |" << pfd.fd << "| STATUS: " << client_ptr->status<< "CGI FD: " << client_ptr->cgi_fd
                                 // <<" CLIENT FD. " << client_ptr->getFd();
-
+                            client_ptr->cgi_fd=-1;
+			                client_ptr->cgiresgitered =false;
 
                             struct pollfd* changeevent = findPollfd(poll_fds, client_ptr->getFd());
                             if (changeevent)

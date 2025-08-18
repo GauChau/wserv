@@ -15,21 +15,24 @@ bool client::handle_jesus(pollfd& pfd)
 {
     if ((pfd.revents & POLLIN) )
     {
+		if( this->status == WAITING)
+			// std::cerr<<" aaa "<<pfd.revents << " on pfd" << pfd.fd << "this->request: " << this->_request << std::endl;
 		if( this->status == WAITING && this->_request == NULL)
 		{
-			//    std::cerr<<" aaa "<<pfd.revents << " on pfd" << pfd.fd;
 			// std::cerr<<"new req. ";
 			this->status = READING;
 			this->_request = new Request(*serv, fd, this->status);
 			this->status = this->_request->_request_status;
 			tryLaunchCGI();
+			std::cerr<<" 1* ";
 		}
     }
 
     // si tout le header est compris dans le 1er read, le parse, sinon read encore
     if ((pfd.revents & POLLIN))
     {
-		// std::cerr<<" STAUTS \n"<<this->status;
+		// std::cerr<<" bbb "<<pfd.revents << " on pfd" << pfd.fd;
+		// std::cerr<<" STAUTS "<<this->status;
 		if (this->status == READINGHEADER && this->_request)
 		{
 			this->_request->readRequest();
@@ -41,6 +44,7 @@ bool client::handle_jesus(pollfd& pfd)
 				this->_request->execute();
 				this->status = this->_request->_request_status;
 				tryLaunchCGI();
+				std::cerr<<" 2* ";
 			}
 		}
 		else if (this->status == READINGDATA && this->_request)
@@ -60,11 +64,13 @@ bool client::handle_jesus(pollfd& pfd)
 		{
 			this->status = WAITING;
 			tryLaunchCGI();
+			std::cerr<<" 3* ";
 		}
     }
 	
 	if (this->status == WRITING)
 	{
+		std::cerr<<" ccc "<<pfd.revents << " on pfd" << pfd.fd;
 		pfd.events =  POLLOUT;
 
 		
@@ -81,11 +87,16 @@ bool client::answerClient(pollfd& pfd)
 	}
 	if (this->_request->_request_status == DONE)
 	{
+		std::cerr<<"  answeer dne ";
+		std::cerr<<"\n a* " << this->_request;
 		pfd.events = POLLIN;
 		this->status = WAITING;
 		this->keepalive = this->_request->keepalive;
+		std::cerr<<" 1* " << this->_request;
 		delete this->_request;
+		std::cerr<<" 2* " << this->_request;
 		this->_request = NULL;
+		std::cerr<<" 3* " << this->_request << std::endl;
 		return true;
 	}
 	return false;
@@ -108,6 +119,7 @@ void client::tryLaunchCGI()
 
         // Passe le client en état attente CGI
         this->status = WAITING;
+		
     }
 }
 
