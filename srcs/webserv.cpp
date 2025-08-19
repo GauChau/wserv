@@ -203,24 +203,7 @@ void Webserv::start(void)
         for (size_t i = 0; i < poll_fds.size(); ++i)
         {
             struct pollfd& pfd = poll_fds[i];
-            // if (clientlist.count(pfd.fd))
-            // {
-            //     std::cerr << "  AAAClient " << pfd.fd << " STATUS: " << clientlist[pfd.fd]->status << std::endl;
-            // }
 
-            //print pfd revents if pfd reven
-            if (pfd.revents)
-            {
-                // std::cerr << "\n  PINGED FD: " << pfd.fd << " REVENTS: " << pfd.revents;
-                if (clientlist.count(pfd.fd))
-                {
-                    // std::cerr << " STATUS: " << clientlist[pfd.fd]->status ;
-                    // if (clientlist[pfd.fd]->_request)
-                        // std::cerr<< " class request " << clientlist[pfd.fd]->_request << " reqstat " << clientlist[pfd.fd]->_request->_request_status;
-                }
-                // std::cerr << std::endl;
-            }
-            
             ////////////////////////////////////////////////////////////////////
             //WRITING RESPONSE ON THE SOCKET IF READY TO RECEIVE DATA(POLLOUT)//
             ////////////////////////////////////////////////////////////////////
@@ -253,36 +236,22 @@ void Webserv::start(void)
                     if (pfd.revents & (POLLIN | POLLHUP))
                     {
                         bool finished = client_ptr->cgi_handler->readOutput();
-                        if (finished) {
-
-                            std::cerr << "  B4 cgi FD |" << pfd.fd << "| STATUS: " << client_ptr->status<< "CGI FD: " << client_ptr->cgi_fd;
-                            // std::cerr<< " Parser et envoyer la réponse HTTP ";
-                            // client_ptr->_request->_ReqContent = client_ptr->cgi_handler->getBuffer();
-                            // ...parse headers/body comme avant...
-                            // ...envoie la réponse via HttpForms...
+                        if (finished)
+                        {
                             fds_to_remove.push_back(pfd.fd);
                             client_ptr->status = WRITING;
                             delete client_ptr->cgi_handler;
-                            client_ptr->cgi_handler = NULL;
-                            // std::cerr << " AFTER CLIENT |" << pfd.fd << "| STATUS: " << client_ptr->status<< "CGI FD: " << client_ptr->cgi_fd
-                                // <<" CLIENT FD. " << client_ptr->getFd();
-                            client_ptr->cgi_fd=-1;
-			                client_ptr->cgiresgitered =false;
 
                             struct pollfd* changeevent = findPollfd(poll_fds, client_ptr->getFd());
                             if (changeevent)
                             {
-                                changeevent->events = POLLOUT; // Set to POLLOUT for writing response
-                                // std::cerr << "  CHANGEEVENT POLLOUT " << changeevent->fd << std::endl;
+                                // Set to POLLOUT for writing response
+                                changeevent->events = POLLOUT; 
                             }
                         }
                     }
                 }
             }
-
-            ////////////////////////////////////////////////////////
-
-            
             if (!(pfd.revents & (POLLIN | POLLOUT | POLLHUP)))
                 continue;
 
@@ -294,10 +263,8 @@ void Webserv::start(void)
             {
                 ServerConfig* serv = fd_to_server[pfd.fd];
                 if (!serv)
-                {
-                    // std::cerr << "Error: no ServerConfig for fd " << pfd.fd << std::endl;
                     continue;
-                }
+
                 int client_fd = accept(pfd.fd, (struct sockaddr*)&(serv->client_addr), &serv->client_addr_len);                
                 if (client_fd < 0)
                     continue;
@@ -321,7 +288,7 @@ void Webserv::start(void)
                 clientlist[client_fd] = new client(client_pfd, serv);
             }
             //////////////////////////////////////////////////////////////
-            //POLL FD ISNT A SERV, SO A CLIENT ALREADY CREATED, TREAT IT//
+            //POLL FD ISNT A SERV, SO CLIENT ALREADY CREATED, TREAT IT//
             //////////////////////////////////////////////////////////////
             else 
             {

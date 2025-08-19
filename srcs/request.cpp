@@ -105,7 +105,6 @@ int Request::checkPostDataOk()
 
 int Request::checkHeaderCompletion()
 {
-	std::cerr<<" CHECKHEADER ";
 	std::string::size_type pos = this->_datarec.find("\r\n\r\n",0);
 	if (pos != std::string::npos || iscgi) //HEADER COMPLETE, PARSE IT AND CHOOSE STATE ACCORDINGLY
 	{
@@ -115,7 +114,6 @@ int Request::checkHeaderCompletion()
 	}
 	else //header incomplete
 	{
-		std::cerr<<" \nCHECKHEADERfailed \n"<<this->_datarec+"\n";
 		this->_request_status = READINGHEADER;
 		if (this->_bytes_rec ==0)
 		{	
@@ -153,7 +151,6 @@ Request::Request(const ServerConfig &serv, int socket, int status): _server(serv
 void Request::check_allowed_methods(const ServerConfig &server)
 {
 	LocationConfig location_target;
-	std::cerr<<"b4 match rloc " <<r_location;
 	if(match_location(this->r_location, server.locations, location_target))
 	{
 		// std::cerr<<"\n b4 location_filename: "<<location_filename <<" thisloc"<< _loc.path;
@@ -357,7 +354,6 @@ void Request::Get()
 		if (file_path == "[AUTOINDEX]")
 			file_path = this->location_filename;
 		// default get
-		// if(&(this->_loc.cgi_extension) == NULL || this->_loc.cgi_extension.empty())
 		if(this->_loc.cgi_extension.empty())
 		{
 			const std::string&
@@ -368,10 +364,7 @@ void Request::Get()
 		// cgi
 		else
 		{
-					std::cerr<<"CGI ";
-
 			iscgi = true;
-			// this->_request_status = WAITING;
 			char cwd[PATH_MAX];
 			if (getcwd(cwd, sizeof(cwd)) == NULL) {
 				std::cerr << "getcwd failed" << std::endl;
@@ -379,7 +372,6 @@ void Request::Get()
 			}
 			this->scriptPath = std::string(cwd);
 			this->scriptPath += "/cgi-bin/";
-			// std::cerr<<" cwd: "<<cwd<<" scriptpathGET: "<<this->scriptPath;
 			this->scriptPath += findfrstWExtension(this->scriptPath, this->_loc.cgi_extension);
 
 			this->env["REQUEST_METHOD"] = this->r_method;
@@ -512,7 +504,6 @@ void	Request::writeData()
 void Request::Post_data_write()
 {
 	this->_request_status = WRITING;
-
 	try
 	{
 		if(this->location_filename.size()> this->_loc.root.size())
@@ -576,8 +567,6 @@ void Request::Post()
 		// else
 		// 	this->_request_status = READINGDATA;
 	}
-	
-
 }
 
 

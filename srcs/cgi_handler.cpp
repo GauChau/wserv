@@ -12,7 +12,12 @@ CGIHandler::CGIHandler(client* client)
 
 CGIHandler::~CGIHandler()
 {
-    std::cerr<<" deletecgiclass ["<<_fd<<"] ";;
+    std::cerr<<" deletecgiclass ["<<_fd<<"] ";
+    
+    
+    this->_client->cgi_handler = NULL;
+    this->_client->cgi_fd=-1;
+    this->_client->cgiresgitered =false;
     if (_fd != -1) close(_fd);
 }
 
@@ -25,7 +30,6 @@ int CGIHandler::launch()
     int pipe_out[2];
     int pipe_in[2];
 
-    std::cout << "LAUNCHCGI ";
     if (pipe(pipe_out) == -1 || pipe(pipe_in) == -1) {
         perror("pipe");
         return -1;
@@ -126,10 +130,6 @@ bool CGIHandler::readOutput()
         this->_client->cgi_buffer.clear();
         return true ;
     }
-
-
-
-
     return false;
 }
 

@@ -65,7 +65,6 @@ class client
 			status = WAITING;
 			this->fd = pfdin.fd;
 			this->_request = NULL;
-			std::cerr << "1, "<< pfdin.fd;
 			cgi_fd=-1;
 		};
 		~client();
