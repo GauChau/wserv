@@ -30,6 +30,8 @@ int CGIHandler::launch()
     int pipe_out[2];
     int pipe_in[2];
 
+    std::cerr<<" launch cgi handler for client: "<<_client->getFd()<<" script: "<<_scriptPath;
+
     if (pipe(pipe_out) == -1 || pipe(pipe_in) == -1) {
         perror("pipe");
         return -1;
@@ -47,6 +49,7 @@ int CGIHandler::launch()
     std::cout << " " << this->_scriptPath << "..." << std::endl;
     if (pid == 0)
     {
+        std::cerr<<" cgi child launched for client: "<<_client->getFd()<<" script: "<<_scriptPath;
         // Child
         dup2(pipe_in[0], STDIN_FILENO);
         dup2(pipe_out[1], STDOUT_FILENO);
@@ -60,6 +63,8 @@ int CGIHandler::launch()
     }
     else
     {
+
+        std::cerr<<" cgi parent launched for client: "<<_client->getFd()<<" script: "<<_scriptPath;
         close(pipe_in[0]);
         close(pipe_out[1]);
         // if (this->r_method == "POST" && !this->r_body.empty())
@@ -81,13 +86,16 @@ bool CGIHandler::readOutput()
 
     char buffer[4096];
     ssize_t bytes_read = read(_fd, buffer, sizeof(buffer));
-    if (bytes_read > 0) {
+    if (bytes_read > 0) 
+    {
+        // std::cerr<<" cgi read output for client: "<<_client->getFd()<<" bytes read: "<<bytes_read;
         _buffer.append(buffer, bytes_read);
         return false; // Pas fini
     }
 
     if (bytes_read == 0) // EOF : CGI terminé
     {
+        // std::cerr<<" cgi read output for client: "<<_client->getFd()<<" EOF reached";
         std::cerr<<" joe ";
         close(_fd);
         _fd = -1;

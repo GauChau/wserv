@@ -212,6 +212,7 @@ void Webserv::start(void)
         for (size_t i = 0; i < poll_fds.size(); ++i)
         {
             struct pollfd& pfd = poll_fds[i];
+            // std::cerr<< "polling fd: " << pfd.fd << " events: " << pfd.events << " revents: " << pfd.revents << std::endl;
 
             ////////////////////////////////////////////////////////////////////
             //WRITING RESPONSE ON THE SOCKET IF READY TO RECEIVE DATA(POLLOUT)//

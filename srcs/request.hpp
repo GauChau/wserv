@@ -76,7 +76,8 @@ class Request
       int _request_status;
       int iscgi;
      
-      size_t _bytes_rec, _contlen, ret, _totalrec, _totalsent;
+      size_t  _contlen, ret, _totalrec, _totalsent;
+      ssize_t _bytes_rec;
       std::string _ReqContent;
       bool authorized,keepalive;
     private:

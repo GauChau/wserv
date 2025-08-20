@@ -21,6 +21,9 @@ bool client::handle_jesus(pollfd& pfd)
 			this->_request = new Request(*serv, fd, this->status);
 			this->status = this->_request->_request_status;
 			tryLaunchCGI();
+			if (this->status == WRITING)
+				pfd.events =  POLLOUT;
+			return true;
 		}
     }
 

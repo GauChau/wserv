@@ -12,6 +12,7 @@ void Request::readRequest()
 {
 	char buffer[4096];
 	this->_bytes_rec = recv(this->_socket, buffer, sizeof(buffer),0);
+	std::cerr<<this->_bytes_rec << " bytes received on socket " << this->_socket << std::endl;
 	if (this->_bytes_rec > 0)
 	{
 		this->_datarec.append(buffer, this->_bytes_rec);
@@ -21,13 +22,13 @@ void Request::readRequest()
 	}
 	else if (this->_bytes_rec == 0)
 	{
+		std::cerr<< " " << this->_request_status<<" readDONE :\n{";// << this->_datarec<<"}.\n";
 		if(this->_datarec.size() == 0)
 			this->_request_status = DONE;
 		else
 			this->_request_status = EXECUTING;
 
 	}
-	std::cerr<< " " << this->_request_status<<" readDONE :\n{" << this->_datarec<<"}.\n";
 }
 
 void Request::sendResponse()
@@ -122,6 +123,7 @@ int Request::checkHeaderCompletion()
 		if (this->_bytes_rec ==0)
 		{	
 			this->_request_status = WAITING;
+			// std::cerr<<"Header incomplete, waiting for more data on socket: "<<this->_socket<<std::endl;
 		}
 		return false;
 	}
@@ -130,13 +132,16 @@ Request::Request(const ServerConfig &serv, int socket, int status): _server(serv
 {
 	std::cerr<<"NEWREQ ON:|"<<socket<<"|  ";
 	this->_totalrec = 0;
+	this->_bytes_rec = 0;
 	this->_totalsent = 0;
 	this->_request_status = status;
 	this->_datarec = "";
 	this->iscgi = 0;
 	this->readRequest();
+	this->_request_status = READINGHEADER;
 
 	//CHECKS IF HEADER IS COMPLETE
+	// if (this->_bytes_rec ==0)
 	checkHeaderCompletion();//header complete
 
 	if(this->_request_status == EXECUTING)
@@ -273,8 +278,9 @@ void Request::getDir(struct stat &st)
 	else
 	{
 		std::string file_path = this->_loc.root + "/" + this->_loc.index;
+		std::cerr<< " loc index asked @" << file_path;
 		const std::string& body = nonblocking_read(file_path), contentType = "text/html";
-		HttpForms indexcalled(this->_socket, 404,this->keepalive,contentType, body,this->_ReqContent);
+		HttpForms indexcalled(this->_socket, 200,this->keepalive,contentType, body,this->_ReqContent);
 	}
 }
 
@@ -297,11 +303,13 @@ void Request::getFile(struct stat &st)
 
 		if (ext == this->_loc.cgi_extension)
 		{
+			std::cerr << " CGIIDED ";
+			this->scriptPath = this->location_filename;
 			iscgi = true;
 			this->env["REQUEST_METHOD"] = this->r_method;
 			std::stringstream ss; ss << this->r_body.size();
 			this->env["CONTENT_LENGTH"] = ss.str();
-			this->env["SCRIPT_FILENAME"] = this->scriptPath;
+			this->env["SCRIPT_FILENAME"] = this->location_filename;
 			this->env["CONTENT_TYPE"] = this->http_params["Content-Type"];
 			this->env["GATEWAY_INTERFACE"] = "CGI/1.1";
 			this->env["SERVER_PROTOCOL"] = "HTTP/1.1";
@@ -325,109 +333,24 @@ void Request::newGet()
 	// std::string full_path = this->_loc.root;
 
 	struct stat st;
-	std::cerr<<" Get on locfilena: " << this->location_filename<<" rloc: " << this->r_location;
+	// std::cerr<<" Get on locfilena: " << this->location_filename<<" rloc: " << this->r_location;
 	if (stat(this->location_filename.c_str(), &st) == 0)
     {
-		std::cerr<<" |" <<location_filename<<"| exist ";
+		// std::cerr<<" |" <<location_filename<<"| exist ";
 		if (S_ISDIR(st.st_mode))
 		{
-			std::cerr<<" is directory " <<location_filename<<"|  ";
+			// std::cerr<<" is directory " <<location_filename<<"|  ";
 			getDir(st);
 		}
 		else 
 		{
-			std::cerr<<" isnt directory " <<location_filename<<"| ";
+			// std::cerr<<" isnt directory " <<location_filename<<"| ";
 			getFile(st);
 		}
 	}
-
-}
-
-void Request::Get()
-{
-    std::string full_path = this->_loc.root;
-    std::string file_path;
-	this->_request_status = WRITING;
-
-    struct stat st;
-
-	// std::cerr<<"111 location_filename: " << location_filename<<" _loc.root "<<_loc.root <<"";
-	if (stat(full_path.c_str(), &st) == 0)
-    {
-		//old to version to comply with werror etc
-		// if (S_ISDIR(st.st_mode) && (!this->_loc.index.empty() ||
-		// ((&(this->_loc.cgi_extension) != NULL && !this->_loc.cgi_extension.empty())) ))
-
-		if (S_ISDIR(st.st_mode) && (!this->_loc.index.empty() ||
-		((!this->_loc.cgi_extension.empty())) ))
-        {
-			// std::cerr<<"222 location_filename: " << location_filename<<" _loc.root "<<_loc.root <<"";
-			file_path = full_path + "/" + this->_loc.index;
-			if(this->location_filename.size()> this->_loc.root.size())
-			{
-				file_path = this->location_filename;
-				if (is_directory(file_path.c_str()))
-					file_path = "[AUTOINDEX]";
-				else
-				{
-					std::ifstream file(file_path.c_str());
-					if(!file.is_open())
-						file_path = "[404]";
-				}
-			}
-        }
-        else
-        {
-            if (this->_loc.autoindex)
-                file_path = "[AUTOINDEX]";
-            else 
-			{
-				std::cerr<<"333 location_filename: " << location_filename<<" _loc.root "<<_loc.root <<"";
-				file_path = "[403]";
-			}
-		}
-    }
-    else
-    {
-        file_path = "[404]";
-		std::cerr<<"444 location_filename: " << location_filename<<" _loc.root "<<_loc.root <<"";
-    }
-	if(file_path == "[404]")
-		if( this->_loc.redirection.size() > 0)
-			file_path = "[REDIRECTION]";
-
-    //  autoindex
-    if (file_path == "[AUTOINDEX]" && r_location.size() == this->_loc.path.size())
-    {
-		std::cerr<<"777 location_filename: " << location_filename<<" _rloc "<<r_location <<"";
-		std::stringstream listing;
-		DIR* dir = opendir(full_path.c_str());
-		if (!dir) {
-			listing << "<li><em>Directory not found: " << full_path << "</em></li>";
-		} else {
-			struct dirent* entry;
-			while ((entry = readdir(dir)) != NULL)
-			{
-				std::string name = entry->d_name;
-				if (name == "." || name == "..")
-					continue;
-				listing << "<li><a href=\"" << "http://127.0.0.1:8088//" +name << "\">"<< "" + name << "</a></li>\n";
-			}
-			closedir(dir);
-		}
-
-		std::string body = nonblocking_read("./www/errors/autoindex.html");
-		size_t pos = body.find("<!--CONTENT-->");
-		if (pos != std::string::npos) {
-			body.replace(pos, std::string("<!--CONTENT-->").length(), listing.str());
-		}
-		// std::cerr<<" body "<< body;
-		HttpForms notfound(this->_socket,200,this->keepalive,"text/html", body,this->_ReqContent);
-	}
-	// 404 no
-	else if (file_path == "[404]")
+	else
 	{
-		// std::cerr<<"555 location_filename: " << location_filename<<" _loc.root "<<_loc.root <<"";
+		std::cerr<<" file not found " <<location_filename<<"| ";
 		std::string path_404 = "./www/default/404.html";
 		std::vector<std::pair<unsigned int, std::string> >::const_iterator it;
 		it = this->_server.error_pages.begin();
@@ -443,80 +366,11 @@ void Request::Get()
 				body = nonblocking_read(path_404),
 				contentType = "text/html";
 		HttpForms notfound(this->_socket, 404,this->keepalive,contentType, body,this->_ReqContent);
-	}
-	// 403 forbidden
-	else if (file_path == "[403]")
-	{
-		// std::cerr<<"666 location_filename: " << location_filename<<" _loc.root "<<_loc.root <<"";
-		std::string path_403 = "./www/default/403.html";
-		std::vector<std::pair<unsigned int, std::string> >::const_iterator it;
-		it = this->_server.error_pages.begin();
-		for (; it != this->_server.error_pages.end(); ++it)
-		{
-			if (it->first == 403)
-			{
-				path_403 = it->second;
-				break;
-			}
-		}
-		const std::string&
-				body = nonblocking_read(path_403),
-				contentType = "text/html";
-		HttpForms forbid(this->_socket, 403,this->keepalive, contentType, body,this->_ReqContent);
-	}
-	else if (file_path == "[REDIRECTION]")
-	{
-		std::stringstream res;
-		res << "HTTP/1.1 301 Moved Permanently" << "\r\n";
-		res << "Location: "<< this->_loc.redirection <<"\r\n";
-		res << "Content-Length: " << 0 <<"\r\n";
-		res	<< "Connection: close" << "\r\n";
-		res << "\r\n";
-		this->_ReqContent = res.str();
-	}
-	else
-	{
-		if (file_path == "[AUTOINDEX]")
-			file_path = this->location_filename;
-		
-		// int ext = -1;
-		// ext = file_path.find(".");
-		// if(ext != std::string::npos)
-		// {
 
-		// }
-		// default get
-		if(this->_loc.cgi_extension.empty())
-		{
-			const std::string&
-			body = nonblocking_read(file_path);
-			std::string contentType=file_path.substr(file_path.rfind(".")+1);
-			HttpForms ok(this->_socket, 200,this->keepalive, contentType, body,this->_ReqContent);
-		}
-		// cgi
-		else
-		{
-			iscgi = true;
-			char cwd[PATH_MAX];
-			if (getcwd(cwd, sizeof(cwd)) == NULL) {
-				std::cerr << "getcwd failed" << std::endl;
-				return ;
-			}
-			this->scriptPath = std::string(cwd);
-			this->scriptPath += "/cgi-bin/";
-			this->scriptPath += findfrstWExtension(this->scriptPath, this->_loc.cgi_extension);
-
-			this->env["REQUEST_METHOD"] = this->r_method;
-			std::stringstream ss; ss << this->r_body.size();
-			this->env["CONTENT_LENGTH"] = ss.str();
-			this->env["SCRIPT_FILENAME"] = this->scriptPath;
-			this->env["CONTENT_TYPE"] = this->http_params["Content-Type"];
-			this->env["GATEWAY_INTERFACE"] = "CGI/1.1";
-			this->env["SERVER_PROTOCOL"] = "HTTP/1.1";
-			this->env["REDIRECT_STATUS"] = "200";
-		}
 	}
+
 }
+
 void Request::Delete()
 {
 	char buf[PATH_MAX];
