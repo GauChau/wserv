@@ -56,8 +56,7 @@ class Request
       void check_allowed_methods(const ServerConfig &serv);
       void execute();
       void Post_data_write();
-      void getDir(struct stat &st);
-      void getFile(struct stat &st);
+      
       void cgiPost();
       const ServerConfig &_server;
       int _socket;
@@ -71,7 +70,7 @@ class Request
       std::string& getDataRec(){return(this->_datarec);};
       std::string& getScriptPath() { return scriptPath; }
       std::string& getRBody() { return r_body; }
-
+      std::string& getlocationFilename() { return location_filename; }
       
       int _request_status;
       int iscgi;
@@ -92,6 +91,8 @@ class Request
         void Post(); 
         void Get();
         void newGet();
+        void getDir();
+        void getFile(struct stat &st);
         void Delete();
         void writeData();
 };

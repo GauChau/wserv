@@ -51,9 +51,27 @@ int CGIHandler::launch()
     {
         std::cerr<<" cgi child launched for client: "<<_client->getFd()<<" script: "<<_scriptPath;
         // Child
-        dup2(pipe_in[0], STDIN_FILENO);
-        dup2(pipe_out[1], STDOUT_FILENO);
-        close(pipe_in[1]);close(pipe_out[0]);
+        if (this->_client->_request->iscgi)
+        {
+            int fd = open(this->_client->_request->getlocationFilename().c_str(), O_RDONLY); // ou chemin dynamique
+            if (fd < 0)
+            {
+                perror("open");
+                exit(1);
+            }
+
+            dup2(fd, STDIN_FILENO);
+            close(fd); // après dup2
+            dup2(pipe_out[1], STDOUT_FILENO);
+            close(pipe_in[0]);
+            close(pipe_out[1]);
+        }
+        else 
+        {
+            dup2(pipe_in[0], STDIN_FILENO);
+            dup2(pipe_out[1], STDOUT_FILENO);
+            close(pipe_in[1]);close(pipe_out[0]);
+        }
 
         char* argv[] = { (char*)this->_scriptPath.c_str(), NULL };
         char **envp = buildEnvArray();

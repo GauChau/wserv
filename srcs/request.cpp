@@ -221,7 +221,7 @@ void Request::execute()
 	// std::cerr<<" AFTER EXEC ";
 }
 
-void Request::getDir(struct stat &st)
+void Request::getDir()
 {
 	std::string path = this->location_filename;
 	if (this->_loc.index.empty())
@@ -288,7 +288,7 @@ void Request::getFile(struct stat &st)
 {
 	std::string path = this->location_filename,
 				ext;
-	unsigned int pos = path.rfind(".");
+	std::string::size_type pos = path.rfind(".");
 	if (pos != std::string::npos)
 	{
 		ext = path.substr(pos);
@@ -303,7 +303,7 @@ void Request::getFile(struct stat &st)
 
 		if (ext == this->_loc.cgi_extension)
 		{
-			std::cerr << " CGIIDED ";
+			// std::cerr << " CGIIDED ";
 			this->scriptPath = this->location_filename;
 			iscgi = true;
 			this->env["REQUEST_METHOD"] = this->r_method;
@@ -340,7 +340,7 @@ void Request::newGet()
 		if (S_ISDIR(st.st_mode))
 		{
 			// std::cerr<<" is directory " <<location_filename<<"|  ";
-			getDir(st);
+			getDir();
 		}
 		else 
 		{
