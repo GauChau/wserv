@@ -56,9 +56,12 @@ class Request
       void check_allowed_methods(const ServerConfig &serv);
       void execute();
       void Post_data_write();
-     const ServerConfig &_server;
-     int _socket;
-      int launchCGI();
+      void getDir(struct stat &st);
+      void getFile(struct stat &st);
+      void cgiPost();
+      const ServerConfig &_server;
+      int _socket;
+
 
       std::string _get_ReqContent();
       std::map<std::string,std::string> http_params, env;
@@ -87,6 +90,7 @@ class Request
         file_id file;
         void Post(); 
         void Get();
+        void newGet();
         void Delete();
         void writeData();
 };

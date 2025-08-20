@@ -88,6 +88,7 @@ bool CGIHandler::readOutput()
 
     if (bytes_read == 0) // EOF : CGI terminé
     {
+        std::cerr<<" joe ";
         close(_fd);
         _fd = -1;
         _finished = true;

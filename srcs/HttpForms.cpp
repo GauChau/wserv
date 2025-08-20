@@ -80,6 +80,7 @@ HttpForms::HttpForms(int socket,int code, bool keepalive, std::string ctype, std
 	res << this->_code_forms.find(code)->second;
 	res << "Content-Type: "<< this->_content_type<<"\r\n";
 	res << "Content-Length: " << this-> _contentlen<<"\r\n";
+	res << "Access-Control-Allow-Origin: *\r\n";
 	res	<< "Connection: " << this->_connection<<"\r\n";
 	res << "\r\n";
 	res << this->_body;

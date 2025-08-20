@@ -169,10 +169,17 @@ void Webserv::start(void)
         for (std::map<int, client*>::iterator it = clientlist.begin(); it != clientlist.end(); ++it)
         {
             client* client_ptr = it->second;
+            // if(client_ptr->status == DONE && !client_ptr->keepalive)
+            //     {
+            //         poll_fds.erase(client_ptr->getFd())
+            //         delete client_ptr;
+                    
+
+            //     }
             if (client_ptr->cgi_handler && client_ptr->cgi_fd > -1 && client_ptr->cgi_handler->registered == 0)
             {
                 client_ptr->cgi_handler->registered = 1;
-                // std::cerr<<" register pollcgi_fd n: "<<client_ptr->cgi_fd ;
+                std::cerr<<" register pollcgi_fd n: "<<client_ptr->cgi_fd ;
                 struct pollfd cgi_pfd;
                 cgi_pfd.fd = client_ptr->cgi_fd;
                 cgi_pfd.events = POLLIN;
@@ -180,6 +187,8 @@ void Webserv::start(void)
                 poll_fds.push_back(cgi_pfd);
             }
         }
+
+        
 
 
         //////////////////////
@@ -238,10 +247,10 @@ void Webserv::start(void)
                         bool finished = client_ptr->cgi_handler->readOutput();
                         if (finished)
                         {
+                            std::cerr<<" cgi.over ";
                             fds_to_remove.push_back(pfd.fd);
                             client_ptr->status = WRITING;
                             delete client_ptr->cgi_handler;
-
                             struct pollfd* changeevent = findPollfd(poll_fds, client_ptr->getFd());
                             if (changeevent)
                             {
