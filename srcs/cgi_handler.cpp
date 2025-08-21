@@ -51,7 +51,7 @@ int CGIHandler::launch()
     {
         std::cerr<<" cgi child launched for client: "<<_client->getFd()<<" script: "<<_scriptPath;
         // Child
-        if (this->_client->_request->iscgi)
+        if (this->_client->_request->getRmethod() == "POST")
         {
             int fd = open(this->_client->_request->getlocationFilename().c_str(), O_RDONLY); // ou chemin dynamique
             if (fd < 0)

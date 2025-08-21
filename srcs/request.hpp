@@ -69,8 +69,9 @@ class Request
       std::string& getExecCode(){return(this->exec_code);};
       std::string& getDataRec(){return(this->_datarec);};
       std::string& getScriptPath() { return scriptPath; }
-      std::string& getRBody() { return r_body; }
-      std::string& getlocationFilename() { return location_filename; }
+      std::string& getRBody() { return r_body; };
+      std::string& getlocationFilename() { return location_filename; };
+      std::string& getRmethod(){return this->r_method;};
       
       int _request_status;
       int iscgi;
