@@ -39,6 +39,7 @@
 #define EXECUTING 8
 #define DELETE 9
 #define SENDERROR 10
+#define FUCKERY 11
 
 
 class HttpForms;

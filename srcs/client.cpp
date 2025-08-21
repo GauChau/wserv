@@ -25,13 +25,17 @@ bool client::handle_jesus(pollfd& pfd)
 			// if (this->status == WRITING)
 			// 	pfd.events =  POLLOUT;
 			// return true;
+			// if(this->_request->_bytes_rec == 0)
+			// {
+			// 	this->status = READINGHEADER;
+			// }
 		}
     // }
 
     // // si tout le header est compris dans le 1er read, le parse, sinon read encore
     // if ((pfd.revents & POLLIN))
     // {
-		if (this->status == READINGHEADER && this->_request)
+		else if (this->status == READINGHEADER && this->_request)
 		{
 			std::cerr<<" BBB;  ";
 			this->_request->readRequest();
@@ -59,14 +63,14 @@ bool client::handle_jesus(pollfd& pfd)
 			}
 			this->status = this->_request->_request_status;
 		}
-		if (this->status == EXECUTING && this->_request)
+		else if (this->status == EXECUTING && this->_request)
 		{
 			std::cerr<<" DDD;  ";
 			this->_request->execute();
 			this->status = this->_request->_request_status;
 			tryLaunchCGI();
 		}
-		if (this->_request->iscgi && this->status != WAITING)
+		else if (this->_request->iscgi && this->status != WAITING)
 		{
 			this->status = WAITING;
 			tryLaunchCGI();

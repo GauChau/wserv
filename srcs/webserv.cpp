@@ -205,7 +205,8 @@ void Webserv::start(void)
             continue;
         fds_to_remove.clear();
 
-
+        
+        
         /////////////////////////////////////////////////////////////
         //LOOPING THROUGH ALL REGISTERD PFD TO FIND THE PINGED ONES//
         /////////////////////////////////////////////////////////////
@@ -213,6 +214,8 @@ void Webserv::start(void)
         {
             struct pollfd& pfd = poll_fds[i];
             // std::cerr<< "polling fd: " << pfd.fd << " events: " << pfd.events << " revents: " << pfd.revents << std::endl;
+            if(pfd.revents == POLLIN)
+             std::cerr<< " pfd: "<<pfd.fd<< " events: "<<pfd.events << " revents: "<<pfd.revents <<std::endl;
 
             ////////////////////////////////////////////////////////////////////
             //WRITING RESPONSE ON THE SOCKET IF READY TO RECEIVE DATA(POLLOUT)//
@@ -231,7 +234,9 @@ void Webserv::start(void)
                         clientlist.erase(pfd.fd);
                     }
                 }
+                std::cerr << " LAST 1 ";
                 continue ;
+                // break ;
             }
 
            
@@ -248,7 +253,8 @@ void Webserv::start(void)
                         bool finished = client_ptr->cgi_handler->readOutput();
                         if (finished)
                         {
-                            std::cerr<<" cgi.over ";
+                            // std::cerr<<" cgi.over ";
+                            std::cerr<< " CGIpfd: "<<pfd.fd<< " events: "<<pfd.events << " revents: "<<pfd.revents <<std::endl;
                             fds_to_remove.push_back(pfd.fd);
                             client_ptr->status = WRITING;
                             delete client_ptr->cgi_handler;
@@ -256,8 +262,10 @@ void Webserv::start(void)
                             if (changeevent)
                             {
                                 // Set to POLLOUT for writing response
-                                changeevent->events = POLLOUT; 
+                                changeevent->events = POLLOUT;
+
                             }
+                            std::cerr << " LAST 2 ";
                         }
                     }
                 }
@@ -271,6 +279,7 @@ void Webserv::start(void)
             //////////////////////////////////////////////////////////////////////////////
             if (server_fds.count(pfd.fd))
             {
+                std::cerr << " LAST 3 ";
                 ServerConfig* serv = fd_to_server[pfd.fd];
                 if (!serv)
                     continue;
@@ -302,10 +311,16 @@ void Webserv::start(void)
             //////////////////////////////////////////////////////////////
             else 
             {
+                // std::cerr << " LAST 4 ";
+                // std::cerr<< " pfd: "<<pfd.fd<< " events: "<<pfd.events << " revents: "<<pfd.revents <<std::endl;
                 ServerConfig* serv = client_fd_to_server[pfd.fd];
                 if (!serv)
                     continue;
                 clientlist[pfd.fd]->handle_jesus(pfd);
+                // if (clientlist[pfd.fd]->status == FUCKERY)
+                //     delete clientlist[pfd.fd]->_request;
+                    
+
             }
         }
 
