@@ -72,6 +72,7 @@ class Request
       std::string& getRBody() { return r_body; };
       std::string& getlocationFilename() { return location_filename; };
       std::string& getRmethod(){return this->r_method;};
+      std::string& getfileName(){return this->file.name;};
       
       int _request_status;
       int iscgi;

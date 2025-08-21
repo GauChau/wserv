@@ -53,7 +53,7 @@ int CGIHandler::launch()
         // Child
         if (this->_client->_request->getRmethod() == "POST")
         {
-            int fd = open(this->_client->_request->getlocationFilename().c_str(), O_RDONLY); // ou chemin dynamique
+            int fd = open(this->_client->_request->getfileName().c_str(), O_RDONLY); // ou chemin dynamique
             if (fd < 0)
             {
                 perror("open");
