@@ -53,6 +53,7 @@ int CGIHandler::launch()
         // Child
         if (this->_client->_request->getRmethod() == "POST")
         {
+            std::cerr<<" POST CGI: "<<this->_client->_request->getfileName().c_str();
             int fd = open(this->_client->_request->getfileName().c_str(), O_RDONLY); // ou chemin dynamique
             if (fd < 0)
             {
@@ -153,6 +154,7 @@ bool CGIHandler::readOutput()
         }
         else 
              HttpForms ok(0, 200, this->_client->keepalive, contentType, body, this->_client->_request->_ReqContent);
+        // std::cerr<<" \n req of cgi"<<this->_client->_request->_ReqContent;
         this->_client->status = WRITING;
         this->_client->cgi_buffer.clear();
         return true ;

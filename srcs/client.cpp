@@ -17,21 +17,23 @@ bool client::handle_jesus(pollfd& pfd)
     {
 		if( this->status == WAITING && this->_request == NULL)
 		{
+			std::cerr<<" AAA;  ";
 			this->status = READING;
 			this->_request = new Request(*serv, fd, this->status);
 			this->status = this->_request->_request_status;
 			tryLaunchCGI();
-			if (this->status == WRITING)
-				pfd.events =  POLLOUT;
-			return true;
+			// if (this->status == WRITING)
+			// 	pfd.events =  POLLOUT;
+			// return true;
 		}
-    }
+    // }
 
-    // si tout le header est compris dans le 1er read, le parse, sinon read encore
-    if ((pfd.revents & POLLIN))
-    {
+    // // si tout le header est compris dans le 1er read, le parse, sinon read encore
+    // if ((pfd.revents & POLLIN))
+    // {
 		if (this->status == READINGHEADER && this->_request)
 		{
+			std::cerr<<" BBB;  ";
 			this->_request->readRequest();
 			if (this->_request->checkHeaderCompletion())
 				this->keepalive = this->_request->keepalive;
@@ -45,6 +47,7 @@ bool client::handle_jesus(pollfd& pfd)
 		}
 		else if (this->status == READINGDATA && this->_request)
 		{
+			std::cerr<<" CCC;  ";
 			//POST method specific:
 			//we knoW HEADER is done, so now just read the socket until all data is secured
 			this->_request->readRequest();
@@ -56,13 +59,20 @@ bool client::handle_jesus(pollfd& pfd)
 			}
 			this->status = this->_request->_request_status;
 		}
+		if (this->status == EXECUTING && this->_request)
+		{
+			std::cerr<<" DDD;  ";
+			this->_request->execute();
+			this->status = this->_request->_request_status;
+			tryLaunchCGI();
+		}
 		if (this->_request->iscgi && this->status != WAITING)
 		{
 			this->status = WAITING;
 			tryLaunchCGI();
 		}
     }
-	
+	// std::cerr<<" lient STAT: " << status;
 	if (this->status == WRITING)
 		pfd.events =  POLLOUT;
 	return false;
@@ -72,6 +82,7 @@ bool client::answerClient(pollfd& pfd)
 {
 	if((pfd.revents & POLLOUT) && this->status == WRITING && this->_request)
 	{	
+		std::cerr<<"\nsend : " ;//<< this->_request->_ReqContent;
 		this->_request->sendResponse();
 	}
 	if (this->_request->_request_status == DONE)

@@ -34,7 +34,7 @@ void Request::readRequest()
 void Request::sendResponse()
 {
 	ssize_t sent = 0;
-
+	std::cerr<<"SENDING "<< this->_ReqContent;
 	sent = send(this->_socket, this->_ReqContent.data() + this->_totalsent, this->_ReqContent.size() - this->_totalsent, 0);
 	this->_totalsent += sent;
     
@@ -143,8 +143,9 @@ Request::Request(const ServerConfig &serv, int socket, int status): _server(serv
 	//CHECKS IF HEADER IS COMPLETE
 	// if (this->_bytes_rec ==0)
 	checkHeaderCompletion();//header complete
+	
 
-	if(this->_request_status == EXECUTING)
+	if(this->_request_status == EXECUTING && this->r_method != "POST")
 	{
 		this->execute();
 	}
@@ -416,8 +417,10 @@ void Request::Delete()
     else
     	HttpForms notfound(this->_socket,404,this->keepalive,"","",this->_ReqContent);
 }
+
 void	Request::writeData()
 {
+	std::cerr<< " POST FILENAME " <<file.name;
 	bool parsestate = false;
 	if (this->r_boundary =="void") // boundary void = instant data mode?
 		parsestate = true;
@@ -446,6 +449,7 @@ void	Request::writeData()
 					safe_name = sanitize_filename(this->file.fname),
 					full_path = this->_loc.upload_store + "/" + safe_name;
 			this->file.name = full_path;
+			std::cerr<< " POST FILENAME " <<file.name;
 			int socket_fd = open(full_path.c_str(), O_WRONLY | O_NONBLOCK | O_CREAT | O_TRUNC,0644);
 			close(socket_fd);
 		}
@@ -466,6 +470,7 @@ void	Request::writeData()
 					full_path = this->_loc.upload_store + "/" + safe_name;
 			this->file.name = full_path;
 			// nonblocking_write(full_path, this->r_body.data(), this->r_body.size());
+			std::cerr<< " POST FILENAME " <<file.name;
 			std::ofstream outjoe(full_path.c_str(), std::ios::trunc | std::ios::binary);
 			outjoe << this->r_body;
 			break;
@@ -484,25 +489,32 @@ void	Request::writeData()
 
 void Request::Post_data_write()
 {
+	std::cerr<< " POST datawrute " ;
 	this->_request_status = WRITING;
 	try
 	{
-		if(this->location_filename.size()> this->_loc.root.size())
-		{
-			HttpForms notok(this->_socket, 404,this->keepalive,"","",this->_ReqContent);
-			this->_request_status = WRITING;
-		}
-		else
-		{
+		std::cerr<< " POST dataBBBBB " ;
+		// if(this->location_filename.size()> this->_loc.root.size())
+		// {
+		// 	std::cerr<< " POST datAAAAA " ;
+		// 	HttpForms notok(this->_socket, 404,this->keepalive,"","",this->_ReqContent);
+		// 	this->_request_status = WRITING;
+		// }
+		// else
+		// {
+			
 			this->_request_status = WRITING;
 			this->writeData();
 			if (iscgi)
 			{
-				// postCGI
+				std::cerr<< "\n POST yesitscgi" ;
 			}
-			HttpForms ok(this->_socket, 200,this->keepalive,"","",this->_ReqContent);
-			std::cout << "\033[32m[✓] POST request handled successfully!\033[0m" << std::endl;
-		}
+			else
+			{
+				HttpForms ok(this->_socket, 200,this->keepalive,"","",this->_ReqContent);
+				std::cout << "\033[32m[✓] POST request handled successfully!\033[0m" << std::endl;
+			}
+		// }
 	}
 	catch(const std::ofstream::failure& e)
 	{
@@ -548,7 +560,16 @@ void Request::Post()
 		if(this->checkPostDataOk())
 		{
 			if (this->_loc.cgi_extension.empty())
+			{
+				std::cerr<<" loccgiempty ";
 				Post_data_write();
+			}
+			else
+			{
+				cgiPost();
+				Post_data_write();
+
+			}
 		}
 		// else
 		// 	this->_request_status = READINGDATA;
