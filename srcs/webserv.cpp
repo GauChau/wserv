@@ -214,9 +214,9 @@ void Webserv::start(void)
         {
             struct pollfd& pfd = poll_fds[i];
             // std::cerr<< "polling fd: " << pfd.fd << " events: " << pfd.events << " revents: " << pfd.revents << std::endl;
-            if(pfd.revents == POLLIN)
-             std::cerr<< " pfd: "<<pfd.fd<< " events: "<<pfd.events << " revents: "<<pfd.revents <<std::endl;
-
+            // std::cerr<< " pfd: "<<pfd.fd<< " events: "<<pfd.events << " revents: "<<pfd.revents <<std::endl;
+            if(pfd.revents == POLLIN);
+            
             ////////////////////////////////////////////////////////////////////
             //WRITING RESPONSE ON THE SOCKET IF READY TO RECEIVE DATA(POLLOUT)//
             ////////////////////////////////////////////////////////////////////
@@ -234,7 +234,7 @@ void Webserv::start(void)
                         clientlist.erase(pfd.fd);
                     }
                 }
-                std::cerr << " LAST 1 ";
+                // std::cerr << " LAST 1 ";
                 continue ;
                 // break ;
             }

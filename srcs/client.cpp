@@ -37,7 +37,6 @@ bool client::handle_jesus(pollfd& pfd)
     // {
 		else if (this->status == READINGHEADER && this->_request)
 		{
-			std::cerr<<" BBB;  ";
 			this->_request->readRequest();
 			if (this->_request->checkHeaderCompletion())
 				this->keepalive = this->_request->keepalive;
@@ -51,7 +50,6 @@ bool client::handle_jesus(pollfd& pfd)
 		}
 		else if (this->status == READINGDATA && this->_request)
 		{
-			std::cerr<<" CCC;  ";
 			//POST method specific:
 			//we knoW HEADER is done, so now just read the socket until all data is secured
 			this->_request->readRequest();
@@ -60,6 +58,7 @@ bool client::handle_jesus(pollfd& pfd)
 			{
 				//all is received, execute
 				this->_request->Post_data_write();
+				tryLaunchCGI();
 			}
 			this->status = this->_request->_request_status;
 		}
@@ -76,7 +75,6 @@ bool client::handle_jesus(pollfd& pfd)
 			tryLaunchCGI();
 		}
     }
-	// std::cerr<<" lient STAT: " << status;
 	if (this->status == WRITING)
 		pfd.events =  POLLOUT;
 	return false;

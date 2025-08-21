@@ -113,6 +113,7 @@ int Request::checkHeaderCompletion()
 	std::string::size_type pos = this->_datarec.find("\r\n\r\n",0);
 	if (pos != std::string::npos || iscgi) //HEADER COMPLETE, PARSE IT AND CHOOSE STATE ACCORDINGLY
 	{
+		std::cerr<<"Header complete, parsing it now.\n";
 		this->requestParser();
 		this->_request_status = EXECUTING;
 		return true;
@@ -145,7 +146,7 @@ Request::Request(const ServerConfig &serv, int socket, int status): _server(serv
 	checkHeaderCompletion();//header complete
 	
 
-	if(this->_request_status == EXECUTING && this->r_method != "POST")
+	if(this->_request_status == EXECUTING)
 	{
 		this->execute();
 	}
@@ -559,16 +560,21 @@ void Request::Post()
 		}
 		if(this->checkPostDataOk())
 		{
-			if (this->_loc.cgi_extension.empty())
+			std::string ext;
+			std::string::size_type pos = this->location_filename.rfind(".");
+			if (pos != std::string::npos)
+				ext = this->location_filename.substr(pos);
+			else
+				ext = "";
+			if (ext == this->_loc.cgi_extension)
 			{
-				std::cerr<<" loccgiempty ";
+				cgiPost();
 				Post_data_write();
 			}
 			else
 			{
-				cgiPost();
+				std::cerr<<" loccgiempty ";
 				Post_data_write();
-
 			}
 		}
 		// else
