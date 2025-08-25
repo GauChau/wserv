@@ -56,7 +56,7 @@ class client
 			// {
 			// 	std::cerr << "Invalid pollfd pointer in client CONSTRUCTOR" << std::endl;
 			// }
-			
+
 			this->cgiresgitered =false;
 			this->keepalive = false;
 			this->cgi_handler = NULL;
@@ -72,7 +72,7 @@ class client
 
 		HttpForms *_formulaire;
 		Request	*_request;
-		
+
 		//METHODS
 		void tryLaunchCGI();
 		bool handle_jesus(pollfd& pfdin);
@@ -85,10 +85,10 @@ class client
 		CGIHandler* cgi_handler;
 
 		// std::string executeCGI(const std::string& scriptPath, const std::string& method, const std::string& body, std::map<std::string, std::string> env);
-		
+
 		private:
 			ServerConfig *serv;
-			int fd, pollstatus;
+			int fd;
 			std::string data;
 			ssize_t	totalrec;
 

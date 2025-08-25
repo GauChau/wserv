@@ -45,10 +45,10 @@ void deleteAllClients(std::map<int, client*> &clientlist)
     for (it = clientlist.begin(); it != clientlist.end(); ++it)
     {
         if (it->second)
-            delete it->second; 
+            delete it->second;
     }
 
-    clientlist.clear(); 
+    clientlist.clear();
 }
 
 void Webserv::init(void)
@@ -125,7 +125,7 @@ void Webserv::init(void)
     }
 }
 
-// SIGINT 
+// SIGINT
 volatile sig_atomic_t g_terminate = 0;
 
 inline void handle_sigint(int signal)
@@ -151,7 +151,7 @@ void Webserv::start(void)
 
         pollfd pfd;
         pfd.fd = server_fd;
-        pfd.events = POLLIN;// | POLLOUT; 
+        pfd.events = POLLIN;// | POLLOUT;
         poll_fds.push_back(pfd);
         pfd.revents = 0;
         fd_to_server[server_fd] = &this->servers[i];
@@ -159,8 +159,8 @@ void Webserv::start(void)
     }
 
     std::cout << "\033[92m ===== STARTED " << poll_fds.size() << " SERVERZ ===== \033[0m" << std::endl;
-    std::signal(SIGINT, handle_sigint);  
-       
+    std::signal(SIGINT, handle_sigint);
+
     while (!g_terminate)
     {
         ///////////////////////////
@@ -173,7 +173,7 @@ void Webserv::start(void)
             //     {
             //         poll_fds.erase(client_ptr->getFd())
             //         delete client_ptr;
-                    
+
 
             //     }
             if (client_ptr->cgi_handler && client_ptr->cgi_fd > -1 && client_ptr->cgi_handler->registered == 0)
@@ -188,7 +188,7 @@ void Webserv::start(void)
             }
         }
 
-        
+
 
 
         //////////////////////
@@ -205,8 +205,8 @@ void Webserv::start(void)
             continue;
         fds_to_remove.clear();
 
-        
-        
+
+
         /////////////////////////////////////////////////////////////
         //LOOPING THROUGH ALL REGISTERD PFD TO FIND THE PINGED ONES//
         /////////////////////////////////////////////////////////////
@@ -215,8 +215,8 @@ void Webserv::start(void)
             struct pollfd& pfd = poll_fds[i];
             // std::cerr<< "polling fd: " << pfd.fd << " events: " << pfd.events << " revents: " << pfd.revents << std::endl;
             // std::cerr<< " pfd: "<<pfd.fd<< " events: "<<pfd.events << " revents: "<<pfd.revents <<std::endl;
-            if(pfd.revents == POLLIN);
-            
+            // if(pfd.revents == POLLIN);
+
             ////////////////////////////////////////////////////////////////////
             //WRITING RESPONSE ON THE SOCKET IF READY TO RECEIVE DATA(POLLOUT)//
             ////////////////////////////////////////////////////////////////////
@@ -239,7 +239,7 @@ void Webserv::start(void)
                 // break ;
             }
 
-           
+
             /////////////////////////////////////////
             //READING THE CGI RESULT ON HIS PIPE FD//
             /////////////////////////////////////////
@@ -284,14 +284,14 @@ void Webserv::start(void)
                 if (!serv)
                     continue;
 
-                int client_fd = accept(pfd.fd, (struct sockaddr*)&(serv->client_addr), &serv->client_addr_len);                
+                int client_fd = accept(pfd.fd, (struct sockaddr*)&(serv->client_addr), &serv->client_addr_len);
                 if (client_fd < 0)
                     continue;
 
                 // socket timeout (optional, useful)
                 struct timeval timeout = {10, 0}; // 10 seconds
                 setsockopt(client_fd, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout));
-                
+
                 // make non-blocking
                 int flags = fcntl(client_fd, F_GETFL, 0);
                 if (flags != -1)
@@ -309,7 +309,7 @@ void Webserv::start(void)
             //////////////////////////////////////////////////////////////
             //POLL FD ISNT A SERV, SO CLIENT ALREADY CREATED, TREAT IT//
             //////////////////////////////////////////////////////////////
-            else 
+            else
             {
                 // std::cerr << " LAST 4 ";
                 // std::cerr<< " pfd: "<<pfd.fd<< " events: "<<pfd.events << " revents: "<<pfd.revents <<std::endl;
@@ -319,7 +319,7 @@ void Webserv::start(void)
                 clientlist[pfd.fd]->handle_jesus(pfd);
                 // if (clientlist[pfd.fd]->status == FUCKERY)
                 //     delete clientlist[pfd.fd]->_request;
-                    
+
 
             }
         }

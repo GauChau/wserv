@@ -37,7 +37,7 @@ private:
     std::string _requestBody;
 
     int _fd;           // fd du pipe de sortie CGI
-    pid_t _pid;        // pid du processus CGI
+    // pid_t _pid;        // pid du processus CGI
     std::string _buffer;
     bool _finished;
 

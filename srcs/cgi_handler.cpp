@@ -8,13 +8,13 @@
 #include "HttpForms.hpp"
 
 CGIHandler::CGIHandler(client* client)
-    : _client(client), _fd(-1), _pid(-1), _finished(false) {registered = 0; }
+    : _client(client), _fd(-1), _finished(false) {registered = 0; }
 
 CGIHandler::~CGIHandler()
 {
     std::cerr<<" deletecgiclass ["<<_fd<<"] ";
-    
-    
+
+
     this->_client->cgi_handler = NULL;
     this->_client->cgi_fd=-1;
     this->_client->cgiresgitered =false;
@@ -25,7 +25,7 @@ void CGIHandler::setEnv(const std::map<std::string, std::string>& env) { _env = 
 void CGIHandler::setScriptPath(const std::string& path) { _scriptPath = path; }
 void CGIHandler::setRequestBody(const std::string& body) { _requestBody = body; }
 
-int CGIHandler::launch() 
+int CGIHandler::launch()
 {
     int pipe_out[2];
     int pipe_in[2];
@@ -67,7 +67,7 @@ int CGIHandler::launch()
             close(pipe_in[0]);
             close(pipe_out[1]);
         }
-        else 
+        else
         {
             dup2(pipe_in[0], STDIN_FILENO);
             dup2(pipe_out[1], STDOUT_FILENO);
@@ -105,7 +105,7 @@ bool CGIHandler::readOutput()
 
     char buffer[4096];
     ssize_t bytes_read = read(_fd, buffer, sizeof(buffer));
-    if (bytes_read > 0) 
+    if (bytes_read > 0)
     {
         // std::cerr<<" cgi read output for client: "<<_client->getFd()<<" bytes read: "<<bytes_read;
         _buffer.append(buffer, bytes_read);
@@ -152,7 +152,7 @@ bool CGIHandler::readOutput()
             body = "No content returned from CGI script.";
             HttpForms ok(0, 500, this->_client->keepalive, contentType, body, this->_client->_request->_ReqContent);
         }
-        else 
+        else
              HttpForms ok(0, 200, this->_client->keepalive, contentType, body, this->_client->_request->_ReqContent);
         // std::cerr<<" \n req of cgi"<<this->_client->_request->_ReqContent;
         this->_client->status = WRITING;
