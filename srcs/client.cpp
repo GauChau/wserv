@@ -17,7 +17,7 @@ bool client::handle_jesus(pollfd& pfd)
     {
 		if( this->status == WAITING && this->_request == NULL)
 		{
-			std::cerr<<" AAA;  ";
+			// std::cerr<<" AAA;  ";
 			this->status = READING;
 			this->_request = new Request(*serv, fd, this->status);
 			this->status = this->_request->_request_status;
@@ -64,7 +64,7 @@ bool client::handle_jesus(pollfd& pfd)
 		}
 		else if (this->status == EXECUTING && this->_request)
 		{
-			std::cerr<<" DDD;  ";
+			// std::cerr<<" DDD;  ";
 			this->_request->execute();
 			this->status = this->_request->_request_status;
 			tryLaunchCGI();
@@ -83,8 +83,8 @@ bool client::handle_jesus(pollfd& pfd)
 bool client::answerClient(pollfd& pfd)
 {
 	if((pfd.revents & POLLOUT) && this->status == WRITING && this->_request)
-	{	
-		std::cerr<<"\nsend : " ;//<< this->_request->_ReqContent;
+	{
+		// std::cerr<<"\nsend : " ;//<< this->_request->_ReqContent;
 		this->_request->sendResponse();
 	}
 	if (this->_request->_request_status == DONE)
@@ -116,7 +116,7 @@ void client::tryLaunchCGI()
 
         // Passe le client en état attente CGI
         this->status = WAITING;
-		
+
     }
 }
 

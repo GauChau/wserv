@@ -179,7 +179,7 @@ void Webserv::start(void)
             if (client_ptr->cgi_handler && client_ptr->cgi_fd > -1 && client_ptr->cgi_handler->registered == 0)
             {
                 client_ptr->cgi_handler->registered = 1;
-                std::cerr<<" register pollcgi_fd n: "<<client_ptr->cgi_fd ;
+                // std::cerr<<" register pollcgi_fd n: "<<client_ptr->cgi_fd ;
                 struct pollfd cgi_pfd;
                 cgi_pfd.fd = client_ptr->cgi_fd;
                 cgi_pfd.events = POLLIN;
@@ -254,7 +254,7 @@ void Webserv::start(void)
                         if (finished)
                         {
                             // std::cerr<<" cgi.over ";
-                            std::cerr<< " CGIpfd: "<<pfd.fd<< " events: "<<pfd.events << " revents: "<<pfd.revents <<std::endl;
+                            // std::cerr<< " CGIpfd: "<<pfd.fd<< " events: "<<pfd.events << " revents: "<<pfd.revents <<std::endl;
                             fds_to_remove.push_back(pfd.fd);
                             client_ptr->status = WRITING;
                             delete client_ptr->cgi_handler;
@@ -265,7 +265,7 @@ void Webserv::start(void)
                                 changeevent->events = POLLOUT;
 
                             }
-                            std::cerr << " LAST 2 ";
+                            // std::cerr << " LAST 2 ";
                         }
                     }
                 }
@@ -279,7 +279,7 @@ void Webserv::start(void)
             //////////////////////////////////////////////////////////////////////////////
             if (server_fds.count(pfd.fd))
             {
-                std::cerr << " LAST 3 ";
+                // std::cerr << " LAST 3 ";
                 ServerConfig* serv = fd_to_server[pfd.fd];
                 if (!serv)
                     continue;

@@ -12,7 +12,7 @@ CGIHandler::CGIHandler(client* client)
 
 CGIHandler::~CGIHandler()
 {
-    std::cerr<<" deletecgiclass ["<<_fd<<"] ";
+    // std::cerr<<" deletecgiclass ["<<_fd<<"] ";
 
 
     this->_client->cgi_handler = NULL;
@@ -30,7 +30,7 @@ int CGIHandler::launch()
     int pipe_out[2];
     int pipe_in[2];
 
-    std::cerr<<" launch cgi handler for client: "<<_client->getFd()<<" script: "<<_scriptPath;
+    // std::cerr<<" launch cgi handler for client: "<<_client->getFd()<<" script: "<<_scriptPath;
 
     if (pipe(pipe_out) == -1 || pipe(pipe_in) == -1) {
         perror("pipe");
@@ -49,7 +49,7 @@ int CGIHandler::launch()
     std::cout << " " << this->_scriptPath << "..." << std::endl;
     if (pid == 0)
     {
-        std::cerr<<" cgi child launched for client: "<<_client->getFd()<<" script: "<<_scriptPath;
+        // std::cerr<<" cgi child launched for client: "<<_client->getFd()<<" script: "<<_scriptPath;
         // Child
         if (this->_client->_request->getRmethod() == "POST")
         {
@@ -83,7 +83,7 @@ int CGIHandler::launch()
     else
     {
 
-        std::cerr<<" cgi parent launched for client: "<<_client->getFd()<<" script: "<<_scriptPath;
+        // std::cerr<<" cgi parent launched for client: "<<_client->getFd()<<" script: "<<_scriptPath;
         close(pipe_in[0]);
         close(pipe_out[1]);
         // if (this->r_method == "POST" && !this->r_body.empty())
@@ -91,7 +91,7 @@ int CGIHandler::launch()
         close(pipe_in[1]);
 
         fcntl(pipe_out[0], F_SETFL, O_NONBLOCK);
-        std::cerr<<" pipeout0:"<<pipe_out[0];
+        // std::cerr<<" pipeout0:"<<pipe_out[0];
         // exit(0);
         this->_fd = pipe_out[0];
         return pipe_out[0]; // fd à surveiller dans poll
@@ -115,7 +115,7 @@ bool CGIHandler::readOutput()
     if (bytes_read == 0) // EOF : CGI terminé
     {
         // std::cerr<<" cgi read output for client: "<<_client->getFd()<<" EOF reached";
-        std::cerr<<" joe ";
+        // std::cerr<<" joe ";
         close(_fd);
         _fd = -1;
         _finished = true;
@@ -128,7 +128,7 @@ bool CGIHandler::readOutput()
         std::string body;
         if (header_end != std::string::npos)
         {
-            std::cerr<<" EOFB ";
+            // std::cerr<<" EOFB ";
             std::string headers = _buffer.substr(0, header_end);
             body = _buffer.substr(header_end + 4);
             std::istringstream headerStream(headers);

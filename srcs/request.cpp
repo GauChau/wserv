@@ -4,7 +4,7 @@
 
 
 Request::~Request()
-{ 
+{
 	std::cout<<"sock: "<<this->_socket<<" REQUEST DESTROYED\n";
 }
 
@@ -34,10 +34,10 @@ void Request::readRequest()
 void Request::sendResponse()
 {
 	ssize_t sent = 0;
-	std::cerr<<"SENDING "<< this->_ReqContent;
+	// std::cerr<<"SENDING "<< this->_ReqContent;
 	sent = send(this->_socket, this->_ReqContent.data() + this->_totalsent, this->_ReqContent.size() - this->_totalsent, 0);
 	this->_totalsent += sent;
-    
+
     if (sent < 0)
     {
         std::cerr << "\033[31m[x] send() failed: " << strerror(errno) << "\033[0m\n";
@@ -46,7 +46,7 @@ void Request::sendResponse()
 	else if(_totalsent >= this->_ReqContent.size())
 	{
 		std::cerr << "\033[32m[+] Response sent successfully on socket " << this->_socket << "\033[0m";
-		this->_request_status = DONE;		
+		this->_request_status = DONE;
 	}
 }
 void Request::requestParser()
@@ -113,7 +113,7 @@ int Request::checkHeaderCompletion()
 	std::string::size_type pos = this->_datarec.find("\r\n\r\n",0);
 	if (pos != std::string::npos || iscgi) //HEADER COMPLETE, PARSE IT AND CHOOSE STATE ACCORDINGLY
 	{
-		std::cerr<<"Header complete, parsing it now.\n";
+		// std::cerr<<"Header complete, parsing it now.\n";
 		this->requestParser();
 		this->_request_status = EXECUTING;
 		return true;
@@ -122,7 +122,7 @@ int Request::checkHeaderCompletion()
 	{
 		this->_request_status = READINGHEADER;
 		if (this->_bytes_rec ==0)
-		{	
+		{
 			this->_request_status = WAITING;
 			// std::cerr<<"Header incomplete, waiting for more data on socket: "<<this->_socket<<std::endl;
 		}
@@ -131,7 +131,7 @@ int Request::checkHeaderCompletion()
 }
 Request::Request(const ServerConfig &serv, int socket, int status): _server(serv), _socket(socket)
 {
-	std::cerr<<"NEWREQ ON:|"<<socket<<"|  ";
+	// std::cerr<<"NEWREQ ON:|"<<socket<<"|  ";
 	this->_totalrec = 0;
 	this->_bytes_rec = 0;
 	this->_totalsent = 0;
@@ -144,7 +144,7 @@ Request::Request(const ServerConfig &serv, int socket, int status): _server(serv
 	//CHECKS IF HEADER IS COMPLETE
 	// if (this->_bytes_rec ==0)
 	checkHeaderCompletion();//header complete
-	
+
 
 	if(this->_request_status == EXECUTING)
 	{
@@ -152,7 +152,7 @@ Request::Request(const ServerConfig &serv, int socket, int status): _server(serv
 	}
 	else
 		return ;
-	
+
 
 
 }
@@ -237,7 +237,7 @@ void Request::getDir()
 			if (!dir)
 			{
 				listing << "<li><em>Directory not found: " << path << "</em></li>";
-			} 
+			}
 			else
 			{
 				struct dirent* entry;
@@ -319,13 +319,13 @@ void Request::getFile(struct stat &st)
 		}
 		else//default get a file, wherever
 		{
-			
+
 			const std::string&
 			body = nonblocking_read(path);
 			std::string contentType=path.substr(pos);
 			HttpForms ok(this->_socket, 200,this->keepalive, contentType, body,this->_ReqContent);
 		}
-		
+
 	}
 }
 
@@ -344,11 +344,21 @@ void Request::newGet()
 			// std::cerr<<" is directory " <<location_filename<<"|  ";
 			getDir();
 		}
-		else 
+		else
 		{
 			// std::cerr<<" isnt directory " <<location_filename<<"| ";
 			getFile(st);
 		}
+	}
+	else if( this->_loc.redirection.size() > 0)
+	{
+		std::stringstream res;
+		res << "HTTP/1.1 301 Moved Permanently" << "\r\n";
+		res << "Location: "<< this->_loc.redirection <<"\r\n";
+		res << "Content-Length: " << 0 <<"\r\n";
+		res	<< "Connection: close" << "\r\n";
+		res << "\r\n";
+		this->_ReqContent = res.str();
 	}
 	else
 	{
@@ -421,7 +431,7 @@ void Request::Delete()
 
 void	Request::writeData()
 {
-	std::cerr<< " POST FILENAME " <<file.name;
+	// std::cerr<< " POST FILENAME " <<file.name;
 	bool parsestate = false;
 	if (this->r_boundary =="void") // boundary void = instant data mode?
 		parsestate = true;
@@ -446,11 +456,11 @@ void	Request::writeData()
 			parsestate = !parsestate;
 
 			getline(s,buf);
-			std::string 
+			std::string
 					safe_name = sanitize_filename(this->file.fname),
 					full_path = this->_loc.upload_store + "/" + safe_name;
 			this->file.name = full_path;
-			std::cerr<< " POST FILENAME " <<file.name;
+			// std::cerr<< " POST FILENAME " <<file.name;
 			int socket_fd = open(full_path.c_str(), O_WRONLY | O_NONBLOCK | O_CREAT | O_TRUNC,0644);
 			close(socket_fd);
 		}
@@ -466,12 +476,12 @@ void	Request::writeData()
 				this->file.type = this->r_header.substr(pos+14);
 
 			parsestate = !parsestate;
-			std::string 
+			std::string
 					safe_name = sanitize_filename(this->file.fname),
 					full_path = this->_loc.upload_store + "/" + safe_name;
 			this->file.name = full_path;
 			// nonblocking_write(full_path, this->r_body.data(), this->r_body.size());
-			std::cerr<< " POST FILENAME " <<file.name;
+			// std::cerr<< " POST FILENAME " <<file.name;
 			std::ofstream outjoe(full_path.c_str(), std::ios::trunc | std::ios::binary);
 			outjoe << this->r_body;
 			break;
@@ -490,11 +500,11 @@ void	Request::writeData()
 
 void Request::Post_data_write()
 {
-	std::cerr<< " POST datawrute " ;
+	// std::cerr<< " POST datawrute " ;
 	this->_request_status = WRITING;
 	try
 	{
-		std::cerr<< " POST dataBBBBB " ;
+		// std::cerr<< " POST dataBBBBB " ;
 		// if(this->location_filename.size()> this->_loc.root.size())
 		// {
 		// 	std::cerr<< " POST datAAAAA " ;
@@ -503,12 +513,12 @@ void Request::Post_data_write()
 		// }
 		// else
 		// {
-			
+
 			this->_request_status = WRITING;
 			this->writeData();
 			if (iscgi)
 			{
-				std::cerr<< "\n POST yesitscgi" ;
+				// std::cerr<< "\n POST yesitscgi" ;
 			}
 			else
 			{
@@ -573,7 +583,7 @@ void Request::Post()
 			}
 			else
 			{
-				std::cerr<<" loccgiempty ";
+				// std::cerr<<" loccgiempty ";
 				Post_data_write();
 			}
 		}
