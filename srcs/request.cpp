@@ -22,7 +22,7 @@ void Request::readRequest()
 	}
 	else if (this->_bytes_rec == 0)
 	{
-		std::cerr<< " " << this->_request_status<<" readDONE :\n{" << this->_datarec<<"}.\n";
+		// std::cerr<< " " << this->_request_status<<" readDONE :\n{" << this->_datarec<<"}.\n";
 		if(this->_datarec.size() == 0)
 			this->_request_status = DONE;
 		else
@@ -280,7 +280,7 @@ void Request::getDir()
 	else
 	{
 		std::string file_path = this->_loc.root + "/" + this->_loc.index;
-		std::cerr<< " loc index asked @" << file_path;
+		// std::cerr<< " loc index asked @" << file_path;
 		const std::string& body = nonblocking_read(file_path), contentType = "text/html";
 		HttpForms indexcalled(this->_socket, 200,this->keepalive,contentType, body,this->_ReqContent);
 	}
@@ -299,7 +299,7 @@ void Request::getFile(struct stat &st)
 	{
 		ext = "";
 	}
-	std::cerr<< " file ext: " << ext;
+	// std::cerr<< " file ext: " << ext;
 	if(S_ISREG(st.st_mode))
 	{
 
