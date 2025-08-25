@@ -480,8 +480,6 @@ void	Request::writeData()
 					safe_name = sanitize_filename(this->file.fname),
 					full_path = this->_loc.upload_store + "/" + safe_name;
 			this->file.name = full_path;
-			// nonblocking_write(full_path, this->r_body.data(), this->r_body.size());
-			// std::cerr<< " POST FILENAME " <<file.name;
 			std::ofstream outjoe(full_path.c_str(), std::ios::trunc | std::ios::binary);
 			outjoe << this->r_body;
 			break;
@@ -490,7 +488,6 @@ void	Request::writeData()
 		{
 			std::string& filename = this->file.name;
 			const std::string& content = buf+'\n';
-			// nonblocking_write(filename.c_str(), content.data(), content.size());
 			std::ofstream outjoe(filename.c_str(), std::ios::app | std::ios::binary);
 			outjoe << content;
 		}
